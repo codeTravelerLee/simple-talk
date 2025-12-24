@@ -83,6 +83,97 @@ export const signup = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {};
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  //의도치 않은 공백 제거
+  const cleanedEmail = email.trim();
+
+  try {
+    //두 필드가 모두 입력되었는지 확인
+    if (!email || !password) {
+      return res.status(400).json({ error: "모든 정보를 입력해 주세요!" });
+    }
+
+    //이메일로 가입된 유저 검색
+    const foundUser = await User.findOne({ email: cleanedEmail });
+
+    if (!foundUser) {
+      return res
+        .status(400)
+        .json({ error: "이메일 또는 비밀번호를 확인해주세요." });
+    }
+
+    //계정이 잠겨있는지 확인(비밀번호를 여러번 틀린경우)
+    if (foundUser.isAccountLocked && foundUser.lockedUntil > Date.now()) {
+      const diff = foundUser.lockedUntil - Date.now();
+      const minuteDiff = Math.ceil(diff / (60 * 1000));
+
+      return res.status(403).json({
+        error: `계정이 잠겼습니다. ${minuteDiff}분 후에 다시 시도해주세요.`,
+      });
+    }
+
+    //비밀번호 확인
+    const isPasswordMatch = await bcrypt.compare(password, foundUser.password);
+
+    if (!isPasswordMatch) {
+      let updatedUser = await User.findOneAndUpdate(
+        { _id: foundUser._id },
+        { $inc: { passwordWrongCount: 1 } },
+        { new: true }
+      );
+
+      //비밀번호를 틀리면 사용자에게 보낼 메시지
+      let warningMessage = `비밀번호를 ${updatedUser.passwordWrongCount}회 틀리셨습니다.`;
+
+      if (updatedUser.passwordWrongCount === 4) {
+        warningMessage =
+          "비밀번호를 4회 틀리셨습니다. 1회 더 틀리면 계정이 20분간 잠깁니다.";
+      } else if (updatedUser.passwordWrongCount >= 5) {
+        const LOCK_DURATION_TIME = 20 * 60 * 1000; //계정을 잠글 시간: 2o분
+        
+        updatedUser = await User.findOneAndUpdate(
+          {
+            _id: foundUser._id,
+          },
+          {
+            $set: {
+              isAccountLocked: true,
+              lockedUntil: new Date(Date.now() + LOCK_DURATION_TIME),
+            },
+          }
+        );
+
+        warningMessage =
+          "비밀번호를 5회 틀려 20분간 계정이 잠깁니다. 20분 후에 다시 시도해주세요.";
+      }
+
+      return res.status(400).json({
+        error: warningMessage,
+      });
+    }
+
+    //로그인 성공시 -> 기존에 누적된 틀린 횟수 초기화
+    await User.updateOne(
+      { _id: foundUser._id },
+      {
+        $set: {
+          passwordWrongCount: 0,
+          isAccountLocked: false,
+          lockedUntil: null,
+        },
+      }
+    );
+
+    // 토큰발급
+    await generateCookieAndSetToken(foundUser._id, res);
+
+    res.status(200).json({ message: `${foundUser.fullName}님, 환영해요!` });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "internal server error... process: 로그인" });
+  }
+};
 
 export const logout = async (req, res) => {};

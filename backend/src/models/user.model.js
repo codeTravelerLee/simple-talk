@@ -20,6 +20,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    passwordWrongCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    isAccountLocked: {
+      type: Boolean,
+      default: false,
+    },
+    lockedUntil: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
