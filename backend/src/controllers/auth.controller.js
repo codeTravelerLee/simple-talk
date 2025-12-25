@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 import User from "../models/user.model.js";
 import { generateCookieAndSetToken } from "../middleware/generateTokenAndSetCookie.js";
+import redis from "../configs/redis.js";
 
 export const signup = async (req, res) => {
   try {
@@ -176,4 +177,10 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = async (req, res) => {};
+export const logout = async (req, res) => {
+  try {
+    await redis.del("refresh_token")
+  } catch (error) {
+    
+  }
+};
