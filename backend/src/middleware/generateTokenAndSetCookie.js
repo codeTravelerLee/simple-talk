@@ -32,6 +32,7 @@ export const generateCookieAndSetToken = async (userId, res) => {
     httpOnly: true,
     sameSite: process.env.NODE_ENV === "development" ? "lax" : "strict",
     secure: process.env.NODE_ENV !== "development",
+    path: "/",
   });
 
   res.cookie("refresh_token", refreshToken, {
@@ -39,5 +40,6 @@ export const generateCookieAndSetToken = async (userId, res) => {
     httpOnly: true,
     sameSite: process.env.NODE_ENV === "development" ? "lax" : "strict",
     secure: process.env.NODE_ENV !== "development",
+    path: "/",
   });
 };

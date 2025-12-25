@@ -133,7 +133,7 @@ export const login = async (req, res) => {
           "비밀번호를 4회 틀리셨습니다. 1회 더 틀리면 계정이 20분간 잠깁니다.";
       } else if (updatedUser.passwordWrongCount >= 5) {
         const LOCK_DURATION_TIME = 20 * 60 * 1000; //계정을 잠글 시간: 2o분
-        
+
         updatedUser = await User.findOneAndUpdate(
           {
             _id: foundUser._id,
@@ -179,8 +179,24 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    await redis.del("refresh_token")
+    //레디스에 저장된 리프레시 토큰 삭제
+    await redis.del(`refresh_token_${req.user._id}`);
+
+    //쿠키 삭제
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === "development" ? "lax" : "strict",
+      secure: process.env.NODE_ENV !== "development",
+      path: "/",
+    };
+
+    res.clearCookie("access_token", cookieOptions);
+    res.clearCookie("refresh_token", cookieOptions);
+
+    res.status(204).end();
   } catch (error) {
-    
+    console.error(`로그아웃중 에러 발생: ${error}`);
+
+    res.status(500).json({ error: "internal server error..." });
   }
 };
