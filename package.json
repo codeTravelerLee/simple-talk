@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "test": "jest --watchAll --verbose",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watchAll --verbose",
     "dev": "nodemon backend/src/server.js"
   },
   "keywords": [],
