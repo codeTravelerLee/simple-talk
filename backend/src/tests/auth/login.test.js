@@ -2,14 +2,14 @@ import request from "supertest";
 import bcrypt from "bcryptjs";
 
 import redis from "../../configs/redis.js";
-import { clearDb, connect, disConncet } from "../db-handler.js";
+import { clearDb, connect, disConnect } from "../db-handler.js";
 import app from "../app.js";
 import User from "../../models/user.model.js";
 
 beforeAll(async () => await connect());
 afterEach(async () => await clearDb());
 afterAll(async () => {
-  await disConncet();
+  await disConnect();
   await redis.quit();
 });
 
@@ -195,7 +195,7 @@ describe("Auth API테스트(로그인)", () => {
       .send({ email: "test@gmail.com", password: "password123!" });
 
     //Assert
-    const cookies = res.get("Set-Cookie");
+    const cookies = res.get("Set-Cookie"); //set Set대소문자 구분X
     expect(cookies).toBeDefined(); //비어있지 않은지 확인
 
     const hasJwtCookie = cookies.some((cookie) =>

@@ -1,7 +1,7 @@
 import request from "supertest";
 
 import app from "../app.js";
-import { connect, disConncet, clearDb } from "../db-handler.js";
+import { connect, disConnect, clearDb } from "../db-handler.js";
 import redis from "../../configs/redis.js";
 
 import User from "../../models/user.model.js";
@@ -10,7 +10,7 @@ import User from "../../models/user.model.js";
 beforeAll(async () => await connect()); //테스트 전 가상 DB연결
 afterEach(async () => await clearDb()); //개별기능 테스트 후 스키마는 유지한채 가상DB에 쌓인 데이터만 삭제
 afterAll(async () => {
-  await disConncet();
+  await disConnect();
   await redis.quit();
 }); //모든 테스트 종료후 가상DB삭제 및 연결해제
 

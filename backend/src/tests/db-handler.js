@@ -13,15 +13,6 @@ export const connect = async () => {
   await mongoose.connect(uri);
 };
 
-//테스트 전체 종료후 가상 DB연결 해제
-export const disConncet = async () => {
-  if (mongoTestDB) {
-    await mongoose.connection.dropDatabase(); //생성한 DB삭제
-    await mongoose.connection.close(); //mongoose와 테스트DB연결 해제
-    await mongoTestDB.stop(); //테스트DB프로세스 kill
-  }
-};
-
 //개별기능 테스트 후 DB데이터만 삭제, 스키마는 유지
 export const clearDb = async () => {
   if (mongoTestDB) {
@@ -32,5 +23,14 @@ export const clearDb = async () => {
       const collection = collections[key];
       await collection.deleteMany();
     }
+  }
+};
+
+//테스트 전체 종료후 가상 DB연결 해제
+export const disConnect = async () => {
+  if (mongoTestDB) {
+    await mongoose.connection.dropDatabase(); //생성한 DB삭제
+    await mongoose.connection.close(); //mongoose와 테스트DB연결 해제
+    await mongoTestDB.stop(); //테스트DB프로세스 kill
   }
 };
