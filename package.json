@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --watchAll --verbose",
     "dev": "nodemon backend/src/server.js"
   },
   "keywords": [],
@@ -18,9 +18,12 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "ioredis": "^5.8.2",
+    "jest": "^30.2.0",
     "jsonwebtoken": "^9.0.3",
+    "mongodb-memory-server": "^11.0.1",
     "mongoose": "^9.0.2",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "supertest": "^7.1.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
