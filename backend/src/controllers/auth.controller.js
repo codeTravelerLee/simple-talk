@@ -88,7 +88,7 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   //의도치 않은 공백 제거
-  const cleanedEmail = email.trim();
+  const cleanedEmail = email?.trim();
 
   try {
     //두 필드가 모두 입력되었는지 확인
