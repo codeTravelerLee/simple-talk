@@ -3,6 +3,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.route.js";
+import userRoutes from "./routes/user.route.js";
 
 import { connectMongo } from "./configs/db/mongoDB.js";
 
@@ -19,6 +20,7 @@ app.use(cookieParser());
 
 //routes
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/user", userRoutes);
 
 app.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}...`);
