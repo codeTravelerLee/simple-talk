@@ -163,3 +163,21 @@ export const deleteProfileImg = async (req, res) => {
     session.endSession();
   }
 };
+
+//서비스에 가입된 유저 목록 반환 (자기 자신 제외)
+export const getUsers = async (req, res) => {
+  const currentUserId = req.user._id;
+
+  try {
+    const users = await User.find({ _id: { $ne: currentUserId } }).select(
+      "-password"
+    );
+
+    res
+      .status(200)
+      .json({ message: "사용자 목록을 불러왔어요.", usersArray: users });
+  } catch (error) {
+    console.error(`사용자 목록을 불러오는 도중 에러 발생!: ${error}`);
+    res.status(500).json({ error: "internal server error..." });
+  }
+};
