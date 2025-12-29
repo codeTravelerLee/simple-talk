@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 import User from "../models/user.model.js";
 import cloudinary from "../configs/cloudinary.js";
+import mongoose from "mongoose";
 
 export const updateProfile = async (req, res) => {
   const userId = req.user._id;
@@ -58,10 +59,27 @@ export const updateProfile = async (req, res) => {
 
     //변경3 - 프로필 이미지를 변경하고자 할 경우
     if (newProfileImg) {
-      const response = await cloudinary.uploader.upload(newProfileImg);
-      newProfileImg = response.secure_url;
+      //기존 프로필 사진이 있다면 제거
+      const initialImgPublicId = req.user.profileImg?.publicId;
 
-      updateData.profileImg = newProfileImg;
+      if (initialImgPublicId) {
+        await cloudinary.uploader.destroy(initialImgPublicId, {
+          invalidate: true,
+        });
+      }
+
+      //이미지 추가
+      const response = await cloudinary.uploader.upload(newProfileImg, {
+        folder: "user_profile",
+      });
+
+      newProfileImg = response.secure_url;
+      const publicId = response.public_id;
+
+      updateData.profileImg = {
+        url: newProfileImg,
+        publicId: publicId,
+      };
     }
 
     //변경사항이 없을 때 == updateData가 빈 객체일 경우 처리
@@ -91,5 +109,57 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({
       error: "internal server error...",
     });
+  }
+};
+
+//프로필 이미지 삭제
+export const deleteProfileImg = async (req, res) => {
+  //트랜잭션 시작
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId).session(session);
+    const imgPublicId = user.profileImg?.publicId;
+
+    if (!imgPublicId) {
+      await session.abortTransaction();
+      return res
+        .status(400)
+        .json({ error: "삭제할 프로필 이미지가 없습니다." });
+    }
+
+    //DB삭제 먼저 시도 - because. cloudinary는 rollback불가능
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      { $set: { profileImg: { url: "", publicId: "" } } },
+      { session: session, new: true }
+    ).select("-password");
+
+    // cloudinary에서 삭제
+    const cloudinaryResult = await cloudinary.uploader.destroy(imgPublicId, {
+      invalidate: true, //CDN에서도 제거
+    });
+
+    if (cloudinaryResult.result !== "ok") {
+      // Cloudinary 삭제가 실패하면 에러를 던짐, catch에서 DB 작업 롤백
+      throw new Error("Cloudinary 삭제 실패");
+    }
+
+    //트랜잭션 커밋
+    await session.commitTransaction();
+
+    res.status(200).json({
+      message: "프로필 사진을 기본 이미지로 변경했어요.",
+      user: updatedUser,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error(`트랜잭션 롤백됨: ${error}`);
+
+    res.status(500).json({ error: "internal server error..." });
+  } finally {
+    session.endSession();
   }
 };

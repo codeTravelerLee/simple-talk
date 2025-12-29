@@ -17,8 +17,8 @@ const userSchema = new mongoose.Schema(
       minlength: 8,
     },
     profileImg: {
-      type: String,
-      default: "",
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" },
     },
     passwordWrongCount: {
       type: Number,

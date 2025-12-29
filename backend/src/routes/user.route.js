@@ -1,10 +1,14 @@
 import express from "express";
 
 import protectedRoute from "../middleware/protectedRoute.js";
-import { updateProfile } from "../controllers/user.controller.js";
+import {
+  deleteProfileImg,
+  updateProfile,
+} from "../controllers/user.controller.js";
 
 const router = express.Router();
 
 router.patch("/profile", protectedRoute, updateProfile);
+router.delete("/profile-img", protectedRoute, deleteProfileImg);
 
 export default router;
