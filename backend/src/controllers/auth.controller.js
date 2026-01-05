@@ -170,7 +170,20 @@ export const login = async (req, res) => {
     // 토큰발급
     await generateCookieAndSetToken(foundUser._id, res);
 
-    res.status(200).json({ message: `${foundUser.fullName}님, 환영해요!` });
+    //프론트로 전달할 데이터
+    const userData = {
+      email: foundUser.email,
+      fullName: foundUser.fullName,
+      profileImg: foundUser.profileImg,
+      joinedAt: foundUser.createdAt,
+    };
+
+    res
+      .status(200)
+      .json({
+        message: `${foundUser.fullName}님, 환영해요!`,
+        userData: userData,
+      });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ error: "internal server error... process: 로그인" });
