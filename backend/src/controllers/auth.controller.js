@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 
 import User from "../models/user.model.js";
 import { generateCookieAndSetToken } from "../middleware/generateTokenAndSetCookie.js";
-import redis from "../configs/redis.js";
+import redis from "../lib/redis.js";
 
 export const signup = async (req, res) => {
   try {
