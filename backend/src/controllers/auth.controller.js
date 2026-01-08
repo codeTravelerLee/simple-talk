@@ -4,6 +4,14 @@ import User from "../models/user.model.js";
 import { generateCookieAndSetToken } from "../middleware/generateTokenAndSetCookie.js";
 import redis from "../lib/redis.js";
 
+export const getCurrentUser = async (req, res) => {
+  try {
+    res.status(200).json({ currentUser: req.user });
+  } catch (error) {
+    res.status(500).json({ error: "internal server error..." });
+  }
+};
+
 export const signup = async (req, res) => {
   try {
     const { email, fullName, password, passwordConfirm } = req.body;
@@ -178,12 +186,10 @@ export const login = async (req, res) => {
       joinedAt: foundUser.createdAt,
     };
 
-    res
-      .status(200)
-      .json({
-        message: `${foundUser.fullName}님, 환영해요!`,
-        userData: userData,
-      });
+    res.status(200).json({
+      message: `${foundUser.fullName}님, 환영해요!`,
+      userData: userData,
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ error: "internal server error... process: 로그인" });
