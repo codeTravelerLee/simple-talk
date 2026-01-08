@@ -33,63 +33,21 @@ function App() {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <MainPage />
-          </ProtectedRoute>
-        }
-      />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<MainPage />} />
+      </Route>
 
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          <PublicRoute>
-            <SignupPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/signup/terms"
-        element={
-          <PublicRoute>
-            <SignupTermsPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/signup/method"
-        element={
-          <PublicRoute>
-            <SignupMethodPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/signup/email-verfication"
-        element={
-          <PublicRoute>
-            <SignupEmailVerificationPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/signup/info"
-        element={
-          <PublicRoute>
-            <SignupInfoPage />
-          </PublicRoute>
-        }
-      />
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/terms" element={<SignupTermsPage />} />
+        <Route path="/signup/method" element={<SignupMethodPage />} />
+        <Route
+          path="/signup/email-verfication"
+          element={<SignupEmailVerificationPage />}
+        />
+        <Route path="/signup/info" element={<SignupInfoPage />} />
+      </Route>
     </Routes>
   );
 }
