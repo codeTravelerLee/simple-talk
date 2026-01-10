@@ -2,7 +2,9 @@ import axios from "axios";
 
 const axiosInstance = axios.create({
   baseURL:
-    import.meta.env.MODE === "development" ? import.meta.env.SERVER_URI : "",
+    import.meta.env.VITE_MODE === "development"
+      ? import.meta.env.VITE_SERVER_URI
+      : "",
   withCredentials: true,
 });
 

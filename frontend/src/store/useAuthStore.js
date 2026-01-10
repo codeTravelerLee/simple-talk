@@ -42,7 +42,7 @@ export const useAuthStore = create((set) => ({
       return userData;
     } catch (error) {
       set({ error: error.response?.data?.message });
-      throw Error(error);
+      throw error;
     } finally {
       set({ loading: false });
     }
