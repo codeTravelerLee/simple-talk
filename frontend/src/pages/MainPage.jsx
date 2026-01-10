@@ -7,6 +7,7 @@
 import React from "react";
 import { useChatStore } from "../store/useChatStore";
 
+import Navbar from "../components/navbar/Navbar";
 import SideBar from "../components/chat/SideBar";
 import NoChat from "../components/chat/NoChat";
 import ChatContainer from "../components/chat/ChatContainer";
@@ -22,13 +23,21 @@ const MainPage = () => {
   } = useChatStore();
 
   return (
-    <div>
-      {/* 화면 좌측: 대화상대 목록이 나오는 사이드바  */}
-      <SideBar />
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* 상단 내비게이션 바 */}
+      <Navbar />
 
-      {/* 화면 우측: 채팅화면 */}
-      {/* 대화상대 선택시 해당 유저와의 채팅내역 표시, 없으면 기본화면 표시 */}
-      {selectedChatPartner ? <ChatContainer /> : <NoChat />}
+      {/* 메인 콘텐츠 영역 */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* 화면 좌측: 대화상대 목록이 나오는 사이드바  */}
+        <SideBar />
+
+        {/* 화면 우측: 채팅화면 */}
+        {/* 대화상대 선택시 해당 유저와의 채팅내역 표시, 없으면 기본화면 표시 */}
+        <div className="flex-1 overflow-hidden">
+          {selectedChatPartner ? <ChatContainer /> : <NoChat />}
+        </div>
+      </div>
     </div>
   );
 };

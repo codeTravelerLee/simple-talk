@@ -9,6 +9,7 @@ const LoginPage = () => {
     email: "",
     password: "",
   });
+  const [error, setError] = useState("");
 
   const { login, loading } = useAuthStore();
 
@@ -18,6 +19,7 @@ const LoginPage = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const userData = await login(formData.email, formData.password);
       if (userData) {
@@ -27,7 +29,10 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error(error.message || "로그인 실패!");
+      const errorMessage =
+        error.response?.data?.message || error.message || "로그인 실패!";
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -63,6 +68,12 @@ const LoginPage = () => {
               className="w-full px-0 py-3 border-b-2 border-gray-300 bg-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:border-gray-900 transition-colors"
             />
           </div>
+
+          {error && (
+            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-200">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"

@@ -17,9 +17,9 @@ export const useAuthStore = create((set) => ({
 
       return currentUser;
     } catch (error) {
-      set({ authUser: null, error: error.response?.data?.message });
+      set({ authUser: null, error: error.response?.data?.error });
       throw new Error(
-        error.response?.data?.message ||
+        error.response?.data?.error ||
           "현재 로그인된 회원정보를 불러오는데 실패했어요."
       );
     } finally {
@@ -40,6 +40,19 @@ export const useAuthStore = create((set) => ({
       set({ authUser: userData });
 
       return userData;
+    } catch (error) {
+      set({ error: error.response?.data?.message });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  logout: async () => {
+    set({ loading: true, error: null });
+    try {
+      await axiosInstance.post("/api/v1/auth/logout");
+      set({ authUser: null });
     } catch (error) {
       set({ error: error.response?.data?.message });
       throw error;

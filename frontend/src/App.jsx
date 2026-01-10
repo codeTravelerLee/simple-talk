@@ -9,6 +9,7 @@ import SignupEmailVerificationPage from "./pages/auth/SignupEmailVerificationPag
 import SignupInfoPage from "./pages/auth/SignupInfoPage";
 import MainPage from "./pages/MainPage";
 import ErrorPage from "./common/ErrorPage";
+import NotFoundPage from "./common/NotFoundPage";
 
 import { PublicRoute, ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -48,6 +49,9 @@ function App() {
         />
         <Route path="/signup/info" element={<SignupInfoPage />} />
       </Route>
+
+      {/* 404 페이지 */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
