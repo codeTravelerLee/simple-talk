@@ -7,11 +7,12 @@
 import React from "react";
 import { useChatStore } from "../../store/useChatStore";
 
-const UserItem = ({ user }) => {
+const UserItem = ({ user, onClose }) => {
   const { selectedChatPartner, setSelectedChatPartner } = useChatStore();
 
   const handleClick = () => {
     setSelectedChatPartner(user);
+    if (onClose) onClose();
   };
 
   const isSelected = selectedChatPartner?._id === user._id;
@@ -24,7 +25,7 @@ const UserItem = ({ user }) => {
       }`}
     >
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
           {user.profileImg ? (
             <img
               src={user.profileImg}
@@ -32,8 +33,11 @@ const UserItem = ({ user }) => {
               className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
+            // 설정한 프로필 사진이 없으면 fullName의 첫 글자를 이니셜로 따서 기본 프사 지정, 한글이면 A~Z중 아무글자 랜덤
             <span className="text-gray-600 font-medium">
-              {user.fullName.charAt(0).toUpperCase()}
+              {/[가-힣]/.test(user.fullName.charAt(0))
+                ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]
+                : user.fullName.charAt(0).toUpperCase()}
             </span>
           )}
         </div>

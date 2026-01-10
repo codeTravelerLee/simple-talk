@@ -1,10 +1,18 @@
 import { create } from "zustand";
 import axiosInstance from "../api/axiosInstance";
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   authUser: null,
   loading: false,
   error: null,
+  //회원가입시 각 절차가 완료되었는자를 표시
+  signupProgress: {
+    termsAgreed: false,
+    methodSelected: false,
+    emailVerified: false,
+    signupCompleted: false,
+    email: "",
+  },
 
   //현재 로그인된 사용자의 정보를 요청
   getCurrentUser: async () => {
@@ -41,7 +49,30 @@ export const useAuthStore = create((set) => ({
 
       return userData;
     } catch (error) {
-      set({ error: error.response?.data?.message });
+      set({ error: error.response?.data?.error });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  signup: async (email, fullName, password, passwordConfirm) => {
+    set({ loading: true, error: null });
+
+    try {
+      const response = await axiosInstance.post("/api/v1/auth/signup", {
+        email,
+        fullName,
+        password,
+        passwordConfirm,
+      });
+
+      const userData = response.data.userData;
+      set({ authUser: userData });
+
+      return userData;
+    } catch (error) {
+      set({ error: error.response?.data?.error });
       throw error;
     } finally {
       set({ loading: false });
@@ -54,7 +85,7 @@ export const useAuthStore = create((set) => ({
       await axiosInstance.post("/api/v1/auth/logout");
       set({ authUser: null });
     } catch (error) {
-      set({ error: error.response?.data?.message });
+      set({ error: error.response?.data?.error });
       throw error;
     } finally {
       set({ loading: false });
@@ -64,4 +95,23 @@ export const useAuthStore = create((set) => ({
   clearError: () => {
     set({ error: null });
   },
+
+  setSignupProgress: (step, value) =>
+    set((state) => ({
+      signupProgress: {
+        ...state.signupProgress,
+        [step]: value,
+      },
+    })),
+
+  resetSignupProgress: () =>
+    set({
+      signupProgress: {
+        termsAgreed: false,
+        methodSelected: false,
+        emailVerified: false,
+        signupCompleted: false,
+        email: "",
+      },
+    }),
 }));

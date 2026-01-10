@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 import { generateCookieAndSetToken } from "../middleware/generateTokenAndSetCookie.js";
 import redis from "../lib/redis.js";
+import cloudinary from "../lib/cloudinary.js";
+import { sendVerificationEmail } from "../lib/email.js";
 
 export const getCurrentUser = async (req, res) => {
   try {
@@ -80,9 +82,16 @@ export const signup = async (req, res) => {
       await generateCookieAndSetToken(newUser._id, res);
 
       //REMIND: 추후 생성된 user데이터 자체를 반환하도록 수정할 경우, password노출 안되게 주의할 것!
-      res
-        .status(201)
-        .json({ message: `${newUser.fullName}님, 회원가입을 축하드려요!` });
+      res.status(201).json({
+        message: `${newUser.fullName}님, 회원가입을 축하드려요!`,
+        userData: {
+          _id: newUser._id,
+          email: newUser.email,
+          fullName: newUser.fullName,
+          profileImg: newUser.profileImg,
+          joinedAt: newUser.createdAt,
+        },
+      });
     }
   } catch (error) {
     console.error(error);
@@ -217,5 +226,140 @@ export const logout = async (req, res) => {
     console.error(`로그아웃중 에러 발생: ${error}`);
 
     res.status(500).json({ error: "internal server error..." });
+  }
+};
+
+//이메일 인증 코드 전송 - 이메일로 회원가입 하는 경우
+export const sendEmailVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    //이메일 주소가 유효한지 확인
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email || !emailRegex.test(email)) {
+      return res
+        .status(400)
+        .json({ error: "올바르지 않은 이메일 주소입니다." });
+    }
+
+    //해당 이메일로 가입된 계정이 이미 존재하는지 확인
+    const existingUser = await User.findOne({ email: email.trim() });
+    if (existingUser) {
+      return res.status(400).json({ error: "이미 가입된 이메일 주소입니다." });
+    }
+
+    //이메일 인증 코드 생성 및 저장 (임시로 6자리 숫자)
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    // Redis에 인증 코드 저장 (10분 후 만료)
+    await redis.setex(`email_verification_${email}`, 60 * 10, verificationCode);
+
+    // 이메일 전송
+    await sendVerificationEmail(email, verificationCode);
+
+    res.status(200).json({ message: "인증 코드가 이메일로 전송되었습니다." });
+  } catch (error) {
+    console.error(
+      `이메일 인증 코드 전송 중 에러 발생: ${error.message || error}`
+    );
+    res.status(500).json({
+      error: "internal server error... process: 이메일 인증 코드 전송",
+    });
+  }
+};
+
+//이메일 인증 코드 확인
+export const verifyEmailCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    //Redis에서 저장된 인증 코드 가져오기
+    const storedCode = await redis.get(`email_verification_${email}`);
+
+    if (!storedCode) {
+      return res
+        .status(400)
+        .json({ error: "인증 코드가 만료되었거나 존재하지 않습니다." });
+    }
+
+    if (storedCode !== code) {
+      return res.status(400).json({ error: "인증 코드가 올바르지 않습니다." });
+    }
+
+    //인증 성공 시 Redis에서 코드 삭제
+    await redis.del(`email_verification_${email}`);
+
+    res.status(200).json({ message: "이메일 인증이 완료되었습니다." });
+  } catch (error) {
+    console.error(
+      `이메일 인증 코드 확인 중 에러 발생: ${error.message || error}`
+    );
+    res.status(500).json({
+      error: "internal server error... process: 이메일 인증 코드 확인",
+    });
+  }
+};
+
+//회원가입 과정에서 입력한 부가 정보 저장(성별, 생년월일)
+export const saveAdditionalSignupInfo = async (req, res) => {
+  try {
+    const { dateOfBirth, gender } = req.body;
+    let { profileImg } = req.body; //사진은 필수 속성 아님
+
+    const userId = req.user._id;
+
+    //필수 속성값들이 모두 제공되었는지 확인
+    if (!gender || !dateOfBirth) {
+      return res.status(400).json({ error: "모든 정보를 입력해주세요." });
+    }
+
+    //프로필 사진을 선택한 경우
+    let profileImageData = {};
+
+    if (profileImg) {
+      //이미지 추가
+      const response = await cloudinary.uploader.upload(profileImg, {
+        folder: "user_profile",
+      });
+
+      profileImg = response.secure_url;
+      const publicId = response.public_id;
+
+      profileImageData = {
+        url: profileImg,
+        publicId: publicId,
+      };
+    }
+
+    //유저 정보 업데이트
+    const updatedUser = await User.findByIdAndUpdate(
+      { _id: userId },
+      { gender, dateOfBirth, profileImg: profileImageData },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+    }
+
+    res.status(200).json({
+      message: "추가 회원정보가 저장되었습니다.",
+      userData: {
+        _id: updatedUser._id,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        profileImg: updatedUser.profileImg,
+        gender: updatedUser.gender,
+        dateOfBirth: updatedUser.dateOfBirth,
+        joinedAt: updatedUser.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error(`추가 회원정보 저장 중 에러 발생: ${error.message || error}`);
+    res.status(500).json({
+      error: "internal server error... process: 추가 회원정보 저장",
+    });
   }
 };

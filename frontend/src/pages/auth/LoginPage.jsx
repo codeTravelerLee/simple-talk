@@ -88,7 +88,7 @@ const LoginPage = () => {
           <p className="text-gray-600">
             아직 회원이 아니신가요?{" "}
             <Link
-              to="/signup"
+              to="/signup/terms"
               className="text-gray-900 font-medium hover:underline"
             >
               회원가입

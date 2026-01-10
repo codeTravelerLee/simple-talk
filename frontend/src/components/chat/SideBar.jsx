@@ -8,7 +8,7 @@ import React, { useEffect } from "react";
 import { useChatStore } from "../../store/useChatStore";
 import UserItem from "./UserItem";
 
-const SideBar = () => {
+const SideBar = ({ onClose }) => {
   const { users, getUsers, isFetchingUsers } = useChatStore();
 
   useEffect(() => {
@@ -18,7 +18,7 @@ const SideBar = () => {
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">채팅</h2>
+        <h2 className="text-lg font-semibold text-gray-900" title="대화상대 고르기">채팅</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -33,7 +33,7 @@ const SideBar = () => {
         ) : (
           <div className="divide-y divide-gray-100">
             {users.map((user) => (
-              <UserItem key={user._id} user={user} />
+              <UserItem key={user._id} user={user} onClose={onClose} />
             ))}
           </div>
         )}
