@@ -2,8 +2,9 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 
 import axiosInstance from "../api/axiosInstance";
+import { io } from "socket.io-client";
 
-export const useChatStore = create((set) => ({
+export const useChatStore = create((set, get) => ({
   users: [],
   messages: [],
   selectedChatPartner: null, //선택된 대화상대
@@ -11,6 +12,7 @@ export const useChatStore = create((set) => ({
 
   isFetchingUsers: false,
   isFetchingMessages: false,
+  socket: null,
 
   //서비스 가입된 유저 전체 불러옴
   getUsers: async () => {
@@ -57,4 +59,89 @@ export const useChatStore = create((set) => ({
 
   //대화상대 지정
   setSelectedChatPartner: (partner) => set({ selectedChatPartner: partner }),
+
+  // Socket 연결
+  connectSocket: (userId) => {
+    const socket = io(import.meta.env.VITE_SERVER_URI, {
+      query: { userId },
+    });
+
+    socket.on("newMessage", (message) => {
+      set((state) => ({
+        messages: [...state.messages, message],
+      }));
+    });
+
+    set({ socket });
+  },
+
+  // Socket 연결 해제
+  disconnectSocket: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
+
+  //메시지 전송
+  sendMessage: async (recipientId, message) => {
+    try {
+      const response = await axiosInstance.post("/api/v1/message", {
+        receiverId: recipientId,
+        message,
+      });
+
+      const newMessage = response.data.newMessage;
+
+      // 메시지 목록에 새 메시지 추가
+      set((state) => ({
+        messages: [...state.messages, newMessage],
+      }));
+
+      return newMessage;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      set({ error: errorMessage });
+
+      toast.error(errorMessage || "메시지 전송에 실패했습니다.");
+
+      throw new Error(errorMessage || "메시지 전송 실패");
+    }
+  },
+
+  //이미지 메시지 전송
+  sendImageMessage: async (recipientId, imageFile) => {
+    try {
+      const formData = new FormData();
+      formData.append("recipientId", recipientId);
+      formData.append("image", imageFile);
+
+      const response = await axiosInstance.post(
+        "/api/v1/message/send-image",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      const newMessage = response.data.newMessage;
+
+      // 메시지 목록에 새 메시지 추가
+      set((state) => ({
+        messages: [...state.messages, newMessage],
+      }));
+
+      return newMessage;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      set({ error: errorMessage });
+
+      toast.error(errorMessage || "이미지 전송에 실패했습니다.");
+
+      throw new Error(errorMessage || "이미지 전송 실패");
+    }
+  },
 }));

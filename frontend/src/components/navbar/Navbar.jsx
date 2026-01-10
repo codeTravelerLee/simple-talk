@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Menu, X } from "lucide-react";
@@ -7,6 +7,23 @@ const Navbar = () => {
   const { authUser, logout } = useAuthStore();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen]);
+  const menuRef = useRef(null);
 
   const handleLogout = async () => {
     try {
@@ -29,7 +46,7 @@ const Navbar = () => {
   if (!authUser) return null;
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between relative">
+    <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between relative z-50">
       <div className="flex items-center space-x-4">
         <h1 className="text-xl font-bold text-gray-900">Simple Talk</h1>
       </div>
@@ -74,7 +91,7 @@ const Navbar = () => {
       <div className="md:hidden">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="text-gray-600 hover:text-gray-900"
+          className="text-gray-600 hover:text-gray-900 relative z-50"
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -82,7 +99,10 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 md:hidden shadow-lg">
+        <div
+          ref={menuRef}
+          className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 md:hidden shadow-lg z-50"
+        >
           <div className="px-4 py-3 space-y-3">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">

@@ -35,7 +35,7 @@ const MainPage = () => {
 
         {/* 화면 좌측: 대화상대 목록이 나오는 사이드바 */}
         {isSidebarOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className="fixed inset-0 z-40 md:hidden">
             <SideBar onClose={() => setIsSidebarOpen(false)} />
           </div>
         )}

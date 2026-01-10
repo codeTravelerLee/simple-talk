@@ -35,3 +35,11 @@ io.on("connection", (socket) => {
 });
 
 export { app, server, io };
+
+// 메시지 전송 시 실시간으로 상대방에게 전송
+export const emitMessage = (receiverId, message) => {
+  const receiverSocketId = userSocketMap[receiverId];
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("newMessage", message);
+  }
+};

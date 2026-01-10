@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import axiosInstance from "../api/axiosInstance";
+import { useChatStore } from "./useChatStore";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -22,6 +23,11 @@ export const useAuthStore = create((set, get) => ({
       const currentUser = response.data.currentUser;
 
       set({ authUser: currentUser });
+
+      // Socket 연결
+      if (currentUser) {
+        useChatStore.getState().connectSocket(currentUser._id);
+      }
 
       return currentUser;
     } catch (error) {
@@ -46,6 +52,9 @@ export const useAuthStore = create((set, get) => ({
 
       const userData = response.data.userData;
       set({ authUser: userData });
+
+      // Socket 연결
+      useChatStore.getState().connectSocket(userData._id);
 
       return userData;
     } catch (error) {
@@ -84,7 +93,8 @@ export const useAuthStore = create((set, get) => ({
     try {
       await axiosInstance.post("/api/v1/auth/logout");
       set({ authUser: null });
-    } catch (error) {
+      // Socket 연결 해제
+      useChatStore.getState().disconnectSocket();    } catch (error) {
       set({ error: error.response?.data?.error });
       throw error;
     } finally {
