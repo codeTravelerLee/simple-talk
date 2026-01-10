@@ -2,7 +2,7 @@
 대화창 
 */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useChatStore } from "../../store/useChatStore";
 import { Send, Plus, Image } from "lucide-react";
 
@@ -20,6 +20,7 @@ const ChatContainer = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const attachMenuRef = useRef(null);
 
   useEffect(() => {
     if (selectedChatPartner) {
@@ -28,6 +29,25 @@ const ChatContainer = () => {
   }, [selectedChatPartner, getMessageByRecipientId]);
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        attachMenuRef.current &&
+        !attachMenuRef.current.contains(event.target)
+      ) {
+        setShowAttachMenu(false);
+      }
+    };
+
+    if (showAttachMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAttachMenu]);
+
+  useLayoutEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -153,7 +173,7 @@ const ChatContainer = () => {
             </button>
           </div>
         )}
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
+        <form onSubmit={handleSendMessage} className="flex space-x-2 relative">
           <button
             type="button"
             onClick={handleAttachClick}
@@ -162,7 +182,10 @@ const ChatContainer = () => {
             <Plus size={20} />
           </button>
           {showAttachMenu && (
-            <div className="absolute bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-2">
+            <div
+              ref={attachMenuRef}
+              className="absolute bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50"
+            >
               <button
                 onClick={handleFileSelect}
                 className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"

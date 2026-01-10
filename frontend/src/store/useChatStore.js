@@ -114,7 +114,7 @@ export const useChatStore = create((set, get) => ({
   sendImageMessage: async (recipientId, imageFile) => {
     try {
       const formData = new FormData();
-      formData.append("recipientId", recipientId);
+      formData.append("receiverId", recipientId);
       formData.append("image", imageFile);
 
       const response = await axiosInstance.post(
