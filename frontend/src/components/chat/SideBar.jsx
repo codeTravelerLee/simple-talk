@@ -7,6 +7,8 @@
 import React, { useEffect, useState } from "react";
 import { useChatStore } from "../../store/useChatStore";
 import UserItem from "./UserItem";
+import CreateChatModal from "./CreateChatModal";
+import { Plus } from "lucide-react";
 
 const SideBar = ({ onClose }) => {
   const {
@@ -18,7 +20,9 @@ const SideBar = ({ onClose }) => {
     isFetchingChats,
     setSelectedChatPartner,
   } = useChatStore();
+  
   const [activeTab, setActiveTab] = useState("friends");
+  const [isCreateChatModalOpen, setIsCreateChatModalOpen] = useState(false);
 
   useEffect(() => {
     switch (activeTab) {
@@ -47,26 +51,37 @@ const SideBar = ({ onClose }) => {
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="p-4 border-b border-gray-200">
-        <div className="flex space-x-2 mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex space-x-2">
+            <button
+              className={`px-4 py-2 rounded ${
+                activeTab === "friends"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+              onClick={() => setActiveTab("friends")}
+            >
+              친구
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${
+                activeTab === "chats"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+              onClick={() => setActiveTab("chats")}
+            >
+              채팅
+            </button>
+          </div>
+
+          {/* 새 채팅 시작 버튼 */}
           <button
-            className={`px-4 py-2 rounded ${
-              activeTab === "friends"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-200 text-gray-700"
-            }`}
-            onClick={() => setActiveTab("friends")}
+            onClick={() => setIsCreateChatModalOpen(true)}
+            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+            title="새 채팅 시작"
           >
-            친구
-          </button>
-          <button
-            className={`px-4 py-2 rounded ${
-              activeTab === "chats"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-200 text-gray-700"
-            }`}
-            onClick={() => setActiveTab("chats")}
-          >
-            채팅
+            <Plus size={20} />
           </button>
         </div>
         <h2
@@ -103,6 +118,12 @@ const SideBar = ({ onClose }) => {
           </div>
         )}
       </div>
+
+      {/* 새 채팅 모달 */}
+      <CreateChatModal
+        isOpen={isCreateChatModalOpen}
+        onClose={() => setIsCreateChatModalOpen(false)}
+      />
     </div>
   );
 };
