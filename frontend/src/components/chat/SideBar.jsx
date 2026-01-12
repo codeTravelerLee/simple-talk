@@ -14,39 +14,65 @@ const SideBar = ({ onClose }) => {
   const {
     users,
     chats,
+    rooms,
     getUsers,
     getChatList,
+    getRooms,
     isFetchingUsers,
     isFetchingChats,
+    isFetchingRooms,
     setSelectedChatPartner,
+    setSelectedRoom,
   } = useChatStore();
-  
+
   const [activeTab, setActiveTab] = useState("friends");
   const [isCreateChatModalOpen, setIsCreateChatModalOpen] = useState(false);
 
   useEffect(() => {
-    switch (activeTab) {
-      case "friends":
-        getUsers();
-        break;
+    const fetchData = async () => {
+      switch (activeTab) {
+        case "friends":
+          await getUsers();
+          break;
 
-      case "chats":
-        getChatList();
-        break;
+        case "chats":
+          await Promise.all([getChatList(), getRooms()]); //1:1채팅, 단체채팅 목록 불러옴
+          break;
 
-      default:
-        break;
-    }
-    // 탭 변경 시 선택된 채팅 파트너 초기화
-    setSelectedChatPartner(null);
-  }, [activeTab, getUsers, getChatList, setSelectedChatPartner]);
+        default:
+          break;
+      }
+    };
+
+    fetchData();
+
+    //cleanup - 탭 변경 시 선택된 채팅 파트너, 채팅방 초기화
+    return () => {
+      setSelectedChatPartner(null);
+      setSelectedRoom(null);
+    };
+  }, [
+    activeTab,
+    getUsers,
+    getChatList,
+    getRooms,
+    setSelectedChatPartner,
+    setSelectedRoom,
+  ]);
 
   //선택한 탭에 맞춰 데이터를 담고 있는 배열
   const currentList =
-    activeTab === "friends" ? users : chats.filter((chat) => chat.user);
+    activeTab === "friends"
+      ? users
+      : [
+          ...chats.filter((chat) => chat.user), // 1:1 채팅 목록
+          ...rooms.filter((room) => room.isGroupChat), // 단체 채팅만 (중복 방지)
+        ];
 
   const isFetching =
-    activeTab === "friends" ? isFetchingUsers : isFetchingChats;
+    activeTab === "friends"
+      ? isFetchingUsers
+      : isFetchingChats || isFetchingRooms;
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
@@ -107,14 +133,24 @@ const SideBar = ({ onClose }) => {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {currentList.map((item) => (
-              <UserItem
-                key={item._id}
-                user={activeTab === "friends" ? item : item.user}
-                lastMessage={activeTab === "friends" ? null : item.lastMessage}
-                onClose={onClose}
-              />
-            ))}
+            {currentList.map((item) => {
+              // item이 단체채팅방인지 확인 (isGroupChat 속성으로 판단)
+              const isRoom = item.isGroupChat === true;
+
+              return (
+                <UserItem
+                  key={item._id}
+                  user={
+                    activeTab === "friends" ? item : isRoom ? null : item.user
+                  }
+                  room={isRoom ? item : null}
+                  lastMessage={
+                    activeTab === "friends" ? null : item.lastMessage
+                  }
+                  onClose={onClose}
+                />
+              );
+            })}
           </div>
         )}
       </div>

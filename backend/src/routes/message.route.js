@@ -6,6 +6,9 @@ import {
   sendMessage,
   sendImageMessage,
   getChatList,
+  getRoomMessages,
+  sendRoomMessage,
+  sendRoomImageMessage,
 } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -21,5 +24,18 @@ router.post("/", protectedRoute, sendMessage);
 
 //이미지 메시지 전송
 router.post("/send-image", protectedRoute, sendImageMessage);
+
+/*
+ * 채팅방(Room) 기반 메시지 라우트
+ */
+
+// 채팅방 메시지 조회
+router.get("/room/:roomId", protectedRoute, getRoomMessages);
+
+// 채팅방에 텍스트 메시지 전송
+router.post("/room", protectedRoute, sendRoomMessage);
+
+// 채팅방에 이미지 메시지 전송
+router.post("/room/image", protectedRoute, sendRoomImageMessage);
 
 export default router;

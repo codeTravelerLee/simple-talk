@@ -8,14 +8,7 @@ import ChatContainer from "../components/chat/ChatContainer";
 import { Users } from "lucide-react";
 
 const MainPage = () => {
-  const {
-    users,
-    messages,
-    selectedChatPartner,
-    error,
-    isFetchingUsers,
-    isFetchingMessages,
-  } = useChatStore();
+  const { selectedChatPartner, selectedRoom } = useChatStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -46,7 +39,7 @@ const MainPage = () => {
         {/* 오버레이 for 모바일 */}
         {isSidebarOpen && (
           <div
-            className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="md:hidden fixed inset-0 bg-black bg-opacity-90 z-40"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
@@ -54,7 +47,7 @@ const MainPage = () => {
         {/* 화면 우측: 채팅화면 */}
         {/* 대화상대 선택시 해당 유저와의 채팅내역 표시, 없으면 기본화면 표시 */}
         <div className="flex-1 overflow-hidden md:ml-0">
-          {selectedChatPartner ? <ChatContainer /> : <NoChat />}
+          {selectedChatPartner || selectedRoom ? <ChatContainer /> : <NoChat />}
         </div>
       </div>
     </div>
