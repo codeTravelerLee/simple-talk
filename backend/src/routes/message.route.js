@@ -5,9 +5,13 @@ import {
   getAllMessages,
   sendMessage,
   sendImageMessage,
+  getChatList,
 } from "../controllers/message.controller.js";
 
 const router = express.Router();
+
+//채팅 목록 불러오기
+router.get("/chats", protectedRoute, getChatList);
 
 //로그인된 유저가 특정 유저와 주고받은 대화목록 전체를 불러오는 함수. id는 상대방의 id
 router.get("/:id", protectedRoute, getAllMessages);

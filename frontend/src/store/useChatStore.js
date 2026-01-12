@@ -7,11 +7,13 @@ import { io } from "socket.io-client";
 export const useChatStore = create((set, get) => ({
   users: [],
   messages: [],
+  chats: [], // 채팅 목록
   selectedChatPartner: null, //선택된 대화상대
   error: null,
 
   isFetchingUsers: false,
   isFetchingMessages: false,
+  isFetchingChats: false, // 채팅 목록 로딩
   socket: null,
 
   //서비스 가입된 유저 전체 불러옴
@@ -30,6 +32,25 @@ export const useChatStore = create((set, get) => ({
       throw new Error(errorMessage || "사용자를 불러오지 못했어요.");
     } finally {
       set({ isFetchingUsers: false });
+    }
+  },
+
+  //채팅 목록 불러옴
+  getChatList: async () => {
+    set({ isFetchingChats: true, error: null });
+    try {
+      const response = await axiosInstance.get("/api/v1/message/chats");
+      const chatsArray = response.data.chats;
+
+      set({ chats: chatsArray });
+      return chatsArray;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      set({ error: errorMessage });
+
+      throw new Error(errorMessage || "채팅 목록을 불러오지 못했어요.");
+    } finally {
+      set({ isFetchingChats: false });
     }
   },
 

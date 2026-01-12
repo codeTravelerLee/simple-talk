@@ -6,6 +6,66 @@ import { emitMessage } from "../lib/socket.js";
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+//로그인된 유저가 채팅한 상대방 목록을 불러오는 함수
+export const getChatList = async (req, res) => {
+  const myId = req.user._id;
+
+  try {
+    const chats = await Message.aggregate([
+      {
+        $match: {
+          $or: [{ senderId: myId }, { receiverId: myId }],
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $group: {
+          _id: {
+            $cond: {
+              if: { $eq: ["$senderId", myId] },
+              then: "$receiverId",
+              else: "$senderId",
+            },
+          },
+          lastMessage: { $first: "$$ROOT" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $addFields: {
+          user: { $arrayElemAt: ["$user", 0] },
+        },
+      },
+      {
+        $project: {
+          user: 1,
+          lastMessage: 1,
+        },
+      },
+      {
+        $sort: { "lastMessage.createdAt": -1 },
+      },
+    ]);
+
+    res.status(200).json({
+      message: "채팅 목록을 불러왔어요.",
+      chats,
+    });
+  } catch (error) {
+    console.error(`채팅 목록 불러오는 도중 에러 발생: ${error}`);
+    res.status(500).json({ error: "internal server error..." });
+  }
+};
+
 //로그인된 유저가 특정 유저와 주고받은 대화목록 전체를 불러오는 함수
 export const getAllMessages = async (req, res) => {
   const { id: receipientId } = req.params; //상대방id
