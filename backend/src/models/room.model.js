@@ -49,8 +49,11 @@ const roomSchema = new mongoose.Schema(
 
     // 마지막 메시지 (채팅방 목록에서 미리보기로 보여줌)
     lastMessage: {
-      type: String,
-      default: "",
+      text: {
+        type: String,
+        default: "",
+      },
+      //이미지는 "사진을 보냈습니다" 로 대체할 것이므로 속성 불필요
     },
 
     // 마지막 메시지 시간
@@ -64,7 +67,7 @@ const roomSchema = new mongoose.Schema(
   }
 );
 
-// 메시지 검색속도 단축을 위한 인덱스 
+// 메시지 검색속도 단축을 위한 인덱스
 roomSchema.index({ participants: 1, lastMessageAt: -1 });
 
 const Room = mongoose.model("Room", roomSchema);

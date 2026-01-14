@@ -190,8 +190,8 @@ export const getRoomMessages = async (req, res) => {
     // 채팅방이 존재하는지 확인
     const room = await Room.findById(roomId);
     if (!room) {
-      return res.status(404).json({ 
-        message: "채팅방을 찾을 수 없습니다." 
+      return res.status(404).json({
+        message: "채팅방을 찾을 수 없습니다.",
       });
     }
 
@@ -201,8 +201,8 @@ export const getRoomMessages = async (req, res) => {
     );
 
     if (!isParticipant) {
-      return res.status(403).json({ 
-        message: "이 채팅방에 접근할 권한이 없습니다." 
+      return res.status(403).json({
+        message: "이 채팅방에 접근할 권한이 없습니다.",
       });
     }
 
@@ -222,8 +222,8 @@ export const getRoomMessages = async (req, res) => {
     });
   } catch (error) {
     console.error(`채팅방 메시지 조회 중 에러 발생:`, error);
-    res.status(500).json({ 
-      message: "채팅방 메시지 조회 중 오류가 발생했습니다." 
+    res.status(500).json({
+      message: "채팅방 메시지 조회 중 오류가 발생했습니다.",
     });
   }
 };
@@ -236,16 +236,16 @@ export const sendRoomMessage = async (req, res) => {
 
     // 메시지 내용 확인
     if (!message || message.trim() === "") {
-      return res.status(400).json({ 
-        message: "메시지 내용을 입력해주세요." 
+      return res.status(400).json({
+        message: "메시지 내용을 입력해주세요.",
       });
     }
 
     // 채팅방 존재 및 권한 확인
     const room = await Room.findById(roomId);
     if (!room) {
-      return res.status(404).json({ 
-        message: "채팅방을 찾을 수 없습니다." 
+      return res.status(404).json({
+        message: "채팅방을 찾을 수 없습니다.",
       });
     }
 
@@ -254,8 +254,8 @@ export const sendRoomMessage = async (req, res) => {
     );
 
     if (!isParticipant) {
-      return res.status(403).json({ 
-        message: "이 채팅방에 메시지를 보낼 권한이 없습니다." 
+      return res.status(403).json({
+        message: "이 채팅방에 메시지를 보낼 권한이 없습니다.",
       });
     }
 
@@ -269,13 +269,15 @@ export const sendRoomMessage = async (req, res) => {
     await newMessage.save();
 
     // 채팅방의 마지막 메시지 업데이트
-    room.lastMessage = message.trim();
+    room.lastMessage = { text: message.trim() };
     room.lastMessageAt = new Date();
     await room.save();
 
     // 메시지를 populate해서 반환
-    const populatedMessage = await Message.findById(newMessage._id)
-      .populate("senderId", "fullName email profileImg");
+    const populatedMessage = await Message.findById(newMessage._id).populate(
+      "senderId",
+      "fullName email profileImg"
+    );
 
     // 실시간 전송 (채팅방의 모든 참여자에게)
     room.participants.forEach((participantId) => {
@@ -290,8 +292,8 @@ export const sendRoomMessage = async (req, res) => {
     });
   } catch (error) {
     console.error(`채팅방 메시지 전송 중 에러 발생:`, error);
-    res.status(500).json({ 
-      message: "메시지 전송 중 오류가 발생했습니다." 
+    res.status(500).json({
+      message: "메시지 전송 중 오류가 발생했습니다.",
     });
   }
 };
@@ -306,16 +308,16 @@ export const sendRoomImageMessage = [
       const senderId = req.user._id;
 
       if (!req.file) {
-        return res.status(400).json({ 
-          message: "이미지 파일이 필요합니다." 
+        return res.status(400).json({
+          message: "이미지 파일이 필요합니다.",
         });
       }
 
       // 채팅방 존재 및 권한 확인
       const room = await Room.findById(roomId);
       if (!room) {
-        return res.status(404).json({ 
-          message: "채팅방을 찾을 수 없습니다." 
+        return res.status(404).json({
+          message: "채팅방을 찾을 수 없습니다.",
         });
       }
 
@@ -324,8 +326,8 @@ export const sendRoomImageMessage = [
       );
 
       if (!isParticipant) {
-        return res.status(403).json({ 
-          message: "이 채팅방에 메시지를 보낼 권한이 없습니다." 
+        return res.status(403).json({
+          message: "이 채팅방에 메시지를 보낼 권한이 없습니다.",
         });
       }
 
@@ -351,13 +353,15 @@ export const sendRoomImageMessage = [
       await newMessage.save();
 
       // 채팅방의 마지막 메시지 업데이트
-      room.lastMessage = "사진을 보냈습니다.";
+      room.lastMessage = { text: "사진을 보냈습니다." };
       room.lastMessageAt = new Date();
       await room.save();
 
       // 메시지 populate
-      const populatedMessage = await Message.findById(newMessage._id)
-        .populate("senderId", "fullName email profileImg");
+      const populatedMessage = await Message.findById(newMessage._id).populate(
+        "senderId",
+        "fullName email profileImg"
+      );
 
       // 전송
       room.participants.forEach((participantId) => {
@@ -372,10 +376,9 @@ export const sendRoomImageMessage = [
       });
     } catch (error) {
       console.error(`채팅방 이미지 전송 중 에러 발생:`, error);
-      res.status(500).json({ 
-        message: "이미지 전송 중 오류가 발생했습니다." 
+      res.status(500).json({
+        message: "이미지 전송 중 오류가 발생했습니다.",
       });
     }
   },
 ];
-

@@ -87,7 +87,7 @@ export const createRoom = async (req, res) => {
       participants: allParticipants,
       isGroupChat,
       createdBy: currentUserId,
-      lastMessage: "",
+      lastMessage: {text: ""},
       lastMessageAt: new Date(),
     });
 

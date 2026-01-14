@@ -10,7 +10,12 @@ import { formatDateForChatList } from "../../utils/dateFormatter";
 import { Users } from "lucide-react";
 
 const UserItem = ({ user, room, lastMessage, onClose }) => {
-  const { selectedChatPartner, setSelectedChatPartner, selectedRoom, setSelectedRoom } = useChatStore();
+  const {
+    selectedChatPartner,
+    setSelectedChatPartner,
+    selectedRoom,
+    setSelectedRoom,
+  } = useChatStore();
 
   const handleClick = () => {
     if (room) {
@@ -68,7 +73,9 @@ const UserItem = ({ user, room, lastMessage, onClose }) => {
             lastMessage가 없으면 친구 탭을 선택한 경우이므로 user.email을 표시 
              */}
             {lastMessage
-              ? lastMessage.message || "사진을 보냈습니다."
+              ? room
+                ? lastMessage.text //message.controller.js의 sendRoomImageMessage함수에서 이미지 전송시 lastMessage를 "사진을 보냈습니다" 로 자동 설정하고 있기에, lastMessage를 받아오면 됨
+                : lastMessage.message || "사진을 보냈습니다."
               : user?.email}
 
             {/* 몇분전 나눈 채팅인지 표시  */}
