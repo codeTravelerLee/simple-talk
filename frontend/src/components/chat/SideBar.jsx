@@ -4,7 +4,7 @@
 해당 사용자와의 채팅이 가능하다.
 */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useChatStore } from "../../store/useChatStore";
 import UserItem from "./UserItem";
 import CreateChatModal from "./CreateChatModal";
@@ -61,13 +61,50 @@ const SideBar = ({ onClose }) => {
   ]);
 
   //선택한 탭에 맞춰 데이터를 담고 있는 배열
-  const currentList =
-    activeTab === "friends"
-      ? users
-      : [
-          ...chats.filter((chat) => chat.user), // 1:1 채팅 목록
-          ...rooms.filter((room) => room.isGroupChat), // 단체 채팅만 (중복 방지)
-        ];
+  const currentList = useMemo(() => {
+    if (activeTab === "friends") {
+      // friends 탭도 동일한 구조로 정규화
+      return users.map((user) => ({
+        _id: user._id,
+        isGroupChat: false,
+        user: user,
+        room: null,
+        lastMessage: null,
+        lastMessageTime: null,
+      }));
+    }
+
+    //activeTab이 "chats" 탭인 경우
+    //1:1 채팅과 room 채팅 컨트롤러에서 반환하는 데이터의 구조가 다르므로, 이 둘을 합치기 전 구조를 통일화
+    const normalizedChats = chats
+      .filter((chat) => chat.user)
+      .map((chat) => ({
+        _id: chat._id,
+        isGroupChat: false,
+        user: chat.user,
+        room: null,
+        lastMessage: chat.lastMessage,
+        lastMessageTime: chat.lastMessage?.createdAt || chat.updatedAt,
+      }));
+
+    const normalizedRooms = rooms
+      .filter((room) => room.isGroupChat)
+      .map((room) => ({
+        _id: room._id,
+        isGroupChat: true,
+        user: null,
+        room: room,
+        lastMessage: room.lastMessage,
+        lastMessageTime: room.lastMessageAt || room.updatedAt,
+      }));
+
+    // 정규화된 데이터를 합치고 최근 메시지 시간 기준으로 정렬
+    return [...normalizedChats, ...normalizedRooms].sort((a, b) => {
+      const timeA = new Date(a.lastMessageTime || 0);
+      const timeB = new Date(b.lastMessageTime || 0);
+      return timeB - timeA;
+    });
+  }, [activeTab, users, chats, rooms]);
 
   const isFetching =
     activeTab === "friends"
@@ -133,24 +170,15 @@ const SideBar = ({ onClose }) => {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {currentList.map((item) => {
-              // item이 단체채팅방인지 확인 (isGroupChat 속성으로 판단)
-              const isRoom = item.isGroupChat === true;
-
-              return (
-                <UserItem
-                  key={item._id}
-                  user={
-                    activeTab === "friends" ? item : isRoom ? null : item.user
-                  }
-                  room={isRoom ? item : null}
-                  lastMessage={
-                    activeTab === "friends" ? null : item.lastMessage
-                  }
-                  onClose={onClose}
-                />
-              );
-            })}
+            {currentList.map((item) => (
+              <UserItem
+                key={item._id}
+                user={item.user}
+                room={item.room}
+                lastMessage={item.lastMessage}
+                onClose={onClose}
+              />
+            ))}
           </div>
         )}
       </div>

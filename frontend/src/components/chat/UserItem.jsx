@@ -74,12 +74,20 @@ const UserItem = ({ user, room, lastMessage, onClose }) => {
              */}
             {lastMessage
               ? room
-                ? lastMessage.text //message.controller.js의 sendRoomImageMessage함수에서 이미지 전송시 lastMessage를 "사진을 보냈습니다" 로 자동 설정하고 있기에, lastMessage를 받아오면 됨
+                ? room.lastMessage.text //message.controller.js의 sendRoomImageMessage함수에서 이미지 전송시 lastMessage를 "사진을 보냈습니다" 로 자동 설정하고 있기에, lastMessage를 받아오면 됨
                 : lastMessage.message || "사진을 보냈습니다."
               : user?.email}
 
             {/* 몇분전 나눈 채팅인지 표시  */}
-            {lastMessage?.createdAt ? (
+            {room ? (
+              // 단체채팅방인 경우 lastMessageAt 사용
+              room.lastMessageAt ? (
+                <span className="ml-2 text-xs text-gray-400">
+                  {formatDateForChatList(room.lastMessageAt)}
+                </span>
+              ) : null
+            ) : lastMessage?.createdAt ? (
+              // 개인채팅인 경우 lastMessage.createdAt 사용
               <span className="ml-2 text-xs text-gray-400">
                 {formatDateForChatList(lastMessage.createdAt)}
               </span>
