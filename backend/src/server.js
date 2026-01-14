@@ -35,7 +35,7 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/message", messageRoutes);
-app.use("/api/v1/room", roomRoutes); //채팅방 관련 
+app.use("/api/v1/room", roomRoutes); //채팅방 관련
 
 server.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}...`);
