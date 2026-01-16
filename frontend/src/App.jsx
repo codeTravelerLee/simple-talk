@@ -20,8 +20,10 @@ function App() {
   const { getCurrentUser, loading, error } = useAuthStore();
 
   useEffect(() => {
-    getCurrentUser();
-  }, []);
+    getCurrentUser().catch((err) => {
+      console.error("Failed to get current user:", err);
+    });
+  }, [getCurrentUser]);
 
   if (loading) {
     return (

@@ -189,6 +189,7 @@ export const login = async (req, res) => {
 
     //프론트로 전달할 데이터
     const userData = {
+      _id: foundUser._id,
       email: foundUser.email,
       fullName: foundUser.fullName,
       profileImg: foundUser.profileImg,

@@ -18,9 +18,11 @@ const ChatContainer = () => {
     sendRoomMessage,
     sendImageMessage,
     sendRoomImageMessage,
+    markRoomMessagesAsRead,
   } = useChatStore();
 
-  const { authUser } = useAuthStore(); // 현재 로그인한 사용자
+  const { authUser } = useAuthStore();
+  const currentUserId = authUser?._id;
 
   const [newMessage, setNewMessage] = useState("");
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -30,20 +32,31 @@ const ChatContainer = () => {
   const fileInputRef = useRef(null);
   const attachMenuRef = useRef(null);
 
-  // 메시지 불러오기 (1:1 채팅 또는 채팅방)
+  // 채팅방 선택(접속)
   useEffect(() => {
-    if (selectedRoom) {
-      // 채팅방 메시지 불러오기
-      getRoomMessages(selectedRoom._id);
-    } else if (selectedChatPartner) {
-      // 1:1 채팅 메시지 불러오기
-      getMessageByRecipientId(selectedChatPartner._id);
-    }
+    const loadMessagesAndMarkAsRead = async () => {
+      try {
+        if (selectedRoom) {
+          await getRoomMessages(selectedRoom._id); // 단체채팅방 메시지 불러오기
+        } else if (selectedChatPartner) {
+          await getMessageByRecipientId(selectedChatPartner._id); // 1:1 채팅 메시지 불러오기
+        }
+        // 메시지 읽음 처리
+        if (selectedRoom) {
+          await markRoomMessagesAsRead(selectedRoom._id);
+        }
+      } catch (error) {
+        console.error("메시지 불러오기 실패:", error);
+      }
+    };
+
+    loadMessagesAndMarkAsRead();
   }, [
     selectedRoom,
     selectedChatPartner,
     getRoomMessages,
     getMessageByRecipientId,
+    markRoomMessagesAsRead,
   ]);
 
   useEffect(() => {
@@ -199,51 +212,72 @@ const ChatContainer = () => {
         >
           {/* 메시지 영역 */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.filter(Boolean).map((message) => {
-              // 내가 보낸 메시지인지 확인
-              const isMyMessage =
-                message.senderId._id === authUser._id ||
-                message.senderId === authUser._id;
+            {!currentUserId ? (
+              <div className="text-center text-gray-500">
+                사용자 정보를 불러오는 중...
+              </div>
+            ) : (
+              messages.filter(Boolean).map((message, index) => {
+                // 내가 보낸 메시지인지 확인
+                // senderId가 객체인 경우와 문자열인 경우 모두 처리
+                const messageSenderId =
+                  typeof message.senderId === "object"
+                    ? message.senderId?._id
+                    : message.senderId;
 
-              return (
-                <div
-                  key={message._id}
-                  className={`flex ${
-                    isMyMessage ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div className="flex flex-col max-w-xs lg:max-w-md">
-                    {/* 단체 채팅이고 내 메시지가 아니면 보낸 사람 이름 표시 */}
-                    {selectedRoom?.isGroupChat && !isMyMessage && (
-                      <span className="text-xs text-gray-500 mb-1 ml-2">
-                        {message.senderId.fullName || "알 수 없음"}
-                      </span>
-                    )}
+                const isMyMessage = messageSenderId === currentUserId;
 
-                    <div
-                      className={`px-4 py-2 rounded-lg ${
-                        isMyMessage
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-900"
-                      }`}
-                    >
-                      {message.image ? (
-                        <img
-                          src={message.image}
-                          alt="이미지"
-                          className="max-w-full rounded"
-                        />
-                      ) : (
-                        <p className="text-sm">{message.message}</p>
+                return (
+                  <div
+                    key={message._id}
+                    className={`flex ${
+                      isMyMessage ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div className="flex items-end gap-1">
+                      <div className="flex flex-col max-w-xs lg:max-w-md">
+                        {/* 단체 채팅이고 내 메시지가 아니면 보낸 사람 이름 표시 */}
+                        {selectedRoom?.isGroupChat && !isMyMessage && (
+                          <span className="text-xs text-gray-500 mb-1 ml-2">
+                            {typeof message.senderId === "object"
+                              ? message.senderId.fullName || "알 수 없음"
+                              : "알 수 없음"}
+                          </span>
+                        )}
+
+                        <div
+                          className={`px-4 py-2 rounded-lg ${
+                            isMyMessage
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-200 text-gray-900"
+                          }`}
+                        >
+                          {message.image ? (
+                            <img
+                              src={message.image}
+                              alt="이미지"
+                              className="max-w-full rounded"
+                            />
+                          ) : (
+                            <p className="text-sm">{message.message}</p>
+                          )}
+                          <p className="text-xs mt-1 opacity-70">
+                            {new Date(message.createdAt).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 상대방이 보낸 메시지에만 읽음 표시 (오른쪽) */}
+                      {!isMyMessage && (
+                        <span className="text-xs text-gray-500 mb-1">
+                          {message.isRead ? "읽음" : "안읽음"}
+                        </span>
                       )}
-                      <p className="text-xs mt-1 opacity-70">
-                        {new Date(message.createdAt).toLocaleTimeString()}
-                      </p>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
             <div ref={messagesEndRef} />
           </div>
 

@@ -24,9 +24,25 @@ export const useAuthStore = create((set, get) => ({
 
       set({ authUser: currentUser });
 
-      // Socket 연결
-      if (currentUser) {
+      console.log("[useAuthStore] getCurrentUser - currentUser:", currentUser);
+      console.log(
+        "[useAuthStore] getCurrentUser - currentUser._id:",
+        currentUser?._id
+      );
+
+      // Socket 연결 (currentUser와 _id가 모두 있을 때만)
+      // 화면을 새로고침 하면 이곳에서 소켓 재연결 - 이미 연결되어 있을 경우의 방어로직은 conncectSocket내부에 작성되어 있음.
+      if (currentUser?._id) {
+        console.log(
+          "[useAuthStore] Calling connectSocket with userId:",
+          currentUser._id
+        );
         useChatStore.getState().connectSocket(currentUser._id);
+      } else {
+        console.error(
+          "[useAuthStore] Cannot connect socket: currentUser or _id is missing",
+          currentUser
+        );
       }
 
       return currentUser;
@@ -53,8 +69,22 @@ export const useAuthStore = create((set, get) => ({
       const userData = response.data.userData;
       set({ authUser: userData });
 
-      // Socket 연결
-      useChatStore.getState().connectSocket(userData._id);
+      console.log("[useAuthStore] login - userData:", userData);
+      console.log("[useAuthStore] login - userData._id:", userData?._id);
+
+      // 로그인 직후 소켓 연결
+      if (userData?._id) {
+        console.log(
+          "[useAuthStore] login - Calling connectSocket with userId:",
+          userData._id
+        );
+        useChatStore.getState().connectSocket(userData._id);
+      } else {
+        console.error(
+          "[useAuthStore] login - Cannot connect socket: userData or _id is missing",
+          userData
+        );
+      }
 
       return userData;
     } catch (error) {
@@ -94,7 +124,8 @@ export const useAuthStore = create((set, get) => ({
       await axiosInstance.post("/api/v1/auth/logout");
       set({ authUser: null });
       // Socket 연결 해제
-      useChatStore.getState().disconnectSocket();    } catch (error) {
+      useChatStore.getState().disconnectSocket();
+    } catch (error) {
       set({ error: error.response?.data?.error });
       throw error;
     } finally {

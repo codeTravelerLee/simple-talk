@@ -16,19 +16,22 @@ const userSocketMap = {}; //socket에 접속한 사용자id와 socket연결의 �
 io.on("connection", async (socket) => {
   console.log(`new socket connection: ${socket.id} `);
 
-  // TODO: userId를 토큰과 함께 받아 유효성 검증하는 로직으로 변경 필요
-  const userId = socket.handshake.query.userId; //클라이언트가 쿼리스트링으로 보낸 userId값을 받아옴
+  const userId = socket.handshake.query.userId;
 
-  //사용자가 접속하면
-  if (userId) {
-    userSocketMap[userId] = socket.id;
+  // userId 유효성 검증
+  if (!userId || userId === "undefined" || userId === "null") {
+    console.error("Invalid userId received. socket.js:", userId);
+    return;
+  }
 
-    // 사용자 온라인 상태로 업데이트 (lastSocketConnection을 null로 설정)
-    try {
-      await User.findByIdAndUpdate(userId, { lastSocketConnection: null });
-    } catch (err) {
-      console.error("Failed to update user lastSocketConnection:", err);
-    }
+  // 사용자가 접속하면
+  userSocketMap[userId] = socket.id;
+
+  // 사용자 온라인 상태로 업데이트
+  try {
+    await User.findByIdAndUpdate(userId, { lastSocketConnection: null });
+  } catch (err) {
+    console.error("Failed to update user lastSocketConnection:", err);
   }
 
   io.emit("getConnectedUserId", Object.keys(userSocketMap)); //접속자 목록 공유

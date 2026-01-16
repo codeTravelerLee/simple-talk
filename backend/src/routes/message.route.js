@@ -26,7 +26,7 @@ router.post("/", protectedRoute, sendMessage);
 //이미지 메시지 전송
 router.post("/send-image", protectedRoute, sendImageMessage);
 
-//채팅방의 모든 메시지 읽음 처리
+//채팅방의 상대가 보낸 메시지 전체 읽음 처리
 router.patch("/:roomId", protectedRoute, markRoomMessagesAsRead);
 
 /*

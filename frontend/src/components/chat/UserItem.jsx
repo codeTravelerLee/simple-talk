@@ -109,7 +109,7 @@ const UserItem = ({ user, room, lastMessage, onClose }) => {
              */}
             {lastMessage
               ? room
-                ? room.lastMessage.text //message.controller.js의 sendRoomImageMessage함수에서 이미지 전송시 lastMessage를 "사진을 보냈습니다" 로 자동 설정하고 있기에, lastMessage를 받아오면 됨
+                ? lastMessage // room의 lastMessage는 문자열로 저장됨
                 : lastMessage.message || "사진을 보냈습니다."
               : !room && (isOnline || localLastSocketConnection !== undefined)
               ? formatlastSocketConnection(

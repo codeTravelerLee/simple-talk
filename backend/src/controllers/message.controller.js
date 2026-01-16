@@ -100,7 +100,7 @@ export const getAllMessages = async (req, res) => {
 //상대방에게 메시지를 전송하는 함수
 export const sendMessage = async (req, res) => {
   try {
-    const { receiverId, message } = req.body;
+    const { receiverId, message, roomId } = req.body;
     const senderId = req.user._id;
 
     //메시지 내용이 비어있는지 확인
@@ -111,7 +111,10 @@ export const sendMessage = async (req, res) => {
     const newMessage = new Message({
       senderId,
       receiverId,
+      roomId,
       message: message.trim(),
+      isRead: true, // 자신이 보낸 메시지는 자동으로 읽음 처리
+      readAt: new Date(),
     });
 
     await newMessage.save();
@@ -135,7 +138,7 @@ export const sendImageMessage = [
   //req.file에 이미지 저장 완료후 수행로직
   async (req, res) => {
     try {
-      const { receiverId } = req.body;
+      const { receiverId, roomId } = req.body;
       const senderId = req.user._id;
 
       if (!req.file) {
@@ -157,7 +160,10 @@ export const sendImageMessage = [
       const newMessage = new Message({
         senderId,
         receiverId,
+        roomId,
         image: uploadResult.secure_url,
+        isRead: true, // 자신이 보낸 메시지는 자동으로 읽음 처리
+        readAt: new Date(),
       });
 
       await newMessage.save();
@@ -260,11 +266,13 @@ export const sendRoomMessage = async (req, res) => {
       });
     }
 
-    // 메시지 생성
+    // 메시지 생성 (자신이 보낸 메시지는 자동으로 읽음 처리)
     const newMessage = new Message({
       senderId,
       roomId,
       message: message.trim(),
+      isRead: true, // 자신이 보낸 메시지는 읽음 상태
+      readAt: new Date(),
     });
 
     await newMessage.save();
@@ -344,11 +352,13 @@ export const sendRoomImageMessage = [
         stream.end(req.file.buffer);
       });
 
-      // 메시지 생성
+      // 메시지 생성 (자신이 보낸 메시지는 자동으로 읽음 처리)
       const newMessage = new Message({
         senderId,
         roomId,
         image: uploadResult.secure_url,
+        isRead: true, // 자신이 보낸 메시지는 읽음 상태
+        readAt: new Date(),
       });
 
       await newMessage.save();
@@ -399,7 +409,7 @@ export const markRoomMessagesAsRead = async (req, res) => {
       });
     }
 
-    // 요청을 보낸 사람이 채팅방의 참여자인지 확인 
+    // 요청을 보낸 사람이 채팅방의 참여자인지 확인
     const isParticipant = room.participants.some(
       (participantId) => participantId.toString() === currentUserId.toString()
     );
@@ -427,7 +437,7 @@ export const markRoomMessagesAsRead = async (req, res) => {
 
     res.status(200).json({
       message: "채팅방의 메시지를 읽음 처리했습니다.",
-      modifiedCount: result.modifiedCount, // 읽은 메시지의 수 
+      modifiedCount: result.modifiedCount, // 읽은 메시지의 수
     });
   } catch (error) {
     console.error(`채팅방 메시지 읽음 처리 중 에러 발생:`, error);

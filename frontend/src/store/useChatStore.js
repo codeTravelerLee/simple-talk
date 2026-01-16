@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 
 import axiosInstance from "../api/axiosInstance";
 import { io } from "socket.io-client";
+import { useAuthStore } from "./useAuthStore";
 
 export const useChatStore = create((set, get) => ({
   users: [], //서비스 가입된 사용자 전체
@@ -152,8 +153,25 @@ export const useChatStore = create((set, get) => ({
 
   // Socket 연결
   connectSocket: (userId) => {
-    if (get().socket?.connected) return; // 이미 연결된 경우 무시 - 여러번 중복호출 방지
+    console.log("[useChatStore] connectSocket called with userId:", userId);
 
+    if (get().socket?.connected) {
+      console.log("[useChatStore] Socket already connected, skipping");
+      return; // 이미 연결된 경우 무시 - 여러번 중복호출 방지
+    }
+
+    if (!userId || userId === "undefined" || userId === "null") {
+      console.error(
+        "[useChatStore] Invalid userId, cannot connect socket:",
+        userId
+      );
+      return;
+    }
+
+    console.log(
+      "[useChatStore] Creating socket connection with userId:",
+      userId
+    );
     const socket = io(import.meta.env.VITE_SERVER_URI, {
       query: { userId },
     });
@@ -186,8 +204,37 @@ export const useChatStore = create((set, get) => ({
   //1:1 채팅 메시지 전송
   sendMessage: async (recipientId, message) => {
     try {
+      // 1:1 채팅방 찾거나 생성
+      let roomId = null;
+
+      // 기존 rooms에서 해당 상대방과의 1:1 채팅방 찾기
+      const existingRoom = get().rooms.find(
+        (room) =>
+          !room.isGroupChat &&
+          room.participants.some(
+            (p) => (typeof p === "object" ? p._id : p) === recipientId
+          )
+      );
+
+      if (existingRoom) {
+        roomId = existingRoom._id;
+      } else {
+        // 채팅방이 없으면 생성
+        const roomResponse = await axiosInstance.post("/api/v1/room", {
+          participantIds: [recipientId],
+          name: null, // 1:1 채팅은 이름 불필요
+        });
+        roomId = roomResponse.data._id;
+
+        // 생성된 채팅방을 rooms에 추가
+        set((state) => ({
+          rooms: [roomResponse.data, ...state.rooms],
+        }));
+      }
+
       const response = await axiosInstance.post("/api/v1/message", {
         receiverId: recipientId,
+        roomId: roomId,
         message,
       });
 
@@ -212,8 +259,34 @@ export const useChatStore = create((set, get) => ({
   //1:1 채팅 이미지 메시지 전송
   sendImageMessage: async (recipientId, imageFile) => {
     try {
+      // 1:1 채팅방 찾거나 생성
+      let roomId = null;
+
+      const existingRoom = get().rooms.find(
+        (room) =>
+          !room.isGroupChat &&
+          room.participants.some(
+            (p) => (typeof p === "object" ? p._id : p) === recipientId
+          )
+      );
+
+      if (existingRoom) {
+        roomId = existingRoom._id;
+      } else {
+        const roomResponse = await axiosInstance.post("/api/v1/room", {
+          participantIds: [recipientId],
+          name: null,
+        });
+        roomId = roomResponse.data._id;
+
+        set((state) => ({
+          rooms: [roomResponse.data, ...state.rooms],
+        }));
+      }
+
       const formData = new FormData();
       formData.append("receiverId", recipientId);
+      formData.append("roomId", roomId);
       formData.append("image", imageFile);
 
       const response = await axiosInstance.post(
@@ -253,6 +326,12 @@ export const useChatStore = create((set, get) => ({
       );
       const messagesArray = response.data.messagesArray;
 
+      console.log("채팅방 메시지 불러오기 완료:", {
+        roomId,
+        count: messagesArray.length,
+        firstMessage: messagesArray[0],
+      });
+
       set({ messages: messagesArray });
       return messagesArray;
     } catch (error) {
@@ -275,6 +354,16 @@ export const useChatStore = create((set, get) => ({
       });
 
       const newMessage = response.data.newMessage;
+
+      console.log("메시지 전송 완료 - 데이터 구조 확인:", {
+        roomId,
+        senderId: newMessage.senderId,
+        senderIdType: typeof newMessage.senderId,
+        isObject: typeof newMessage.senderId === "object",
+        senderId_id: newMessage.senderId?._id,
+        isRead: newMessage.isRead,
+        message: newMessage.message?.substring(0, 20),
+      });
 
       // 메시지 목록에 새 메시지 추가
       set((state) => ({
@@ -390,6 +479,47 @@ export const useChatStore = create((set, get) => ({
     } catch (error) {
       console.error("Failed to fetch batch user status:", error);
       return {};
+    }
+  },
+
+  //채팅방에서 상대방이 보낸 메시지를 읽음 처리
+  markRoomMessagesAsRead: async (roomId) => {
+    set({ error: null });
+    try {
+      const response = await axiosInstance.patch(`/api/v1/message/${roomId}`);
+      const { message, modifiedCount } = response.data;
+
+      console.log(`읽음 처리 성공: ${modifiedCount}개 메시지 업데이트됨`);
+
+      // 읽음 처리 성공 시 로컬 상태의 메시지들도 업데이트
+      set((state) => ({
+        messages: state.messages.map((msg) => {
+          // 해당 채팅방의 메시지이고, 아직 읽지 않은 메시지인 경우
+          // senderId가 객체인 경우와 문자열인 경우 모두 처리
+          const msgSenderId =
+            typeof msg.senderId === "object" ? msg.senderId?._id : msg.senderId;
+
+          // useAuthStore에서 현재 사용자 ID 가져오기
+          const currentUserId = useAuthStore.getState().authUser?._id;
+
+          if (
+            msg.roomId === roomId &&
+            !msg.isRead &&
+            msgSenderId !== currentUserId
+          ) {
+            return { ...msg, isRead: true, readAt: new Date().toISOString() };
+          }
+          return msg;
+        }),
+      }));
+
+      return { message, modifiedCount };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "메시지 읽음 처리에 실패했습니다.";
+      set({ error: errorMessage });
+      console.error("읽음 처리 실패:", error);
+      throw new Error(errorMessage);
     }
   },
 }));
