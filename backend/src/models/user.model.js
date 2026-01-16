@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema(
     //가장 최근 소켓에 연결된 시간
     lastSocketConnection: {
       type: Date,
-      default: Date.now,
+      default: null,
     },
   },
   { timestamps: true }

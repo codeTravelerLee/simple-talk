@@ -1,5 +1,6 @@
 import Message from "../models/message.model.js";
 import Room from "../models/room.model.js";
+
 import cloudinary from "../lib/cloudinary.js";
 import multer from "multer";
 import { emitMessage } from "../lib/socket.js";
@@ -382,3 +383,56 @@ export const sendRoomImageMessage = [
     }
   },
 ];
+
+//채팅방 메시지들을 한 번에 읽음 처리
+export const markRoomMessagesAsRead = async (req, res) => {
+  const { roomId } = req.params;
+  const currentUserId = req.user._id;
+
+  try {
+    // 채팅방 존재 및 권한 확인
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        message: "채팅방을 찾을 수 없습니다.",
+      });
+    }
+
+    // 요청을 보낸 사람이 채팅방의 참여자인지 확인 
+    const isParticipant = room.participants.some(
+      (participantId) => participantId.toString() === currentUserId.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "이 채팅방에 접근할 권한이 없습니다.",
+      });
+    }
+
+    // 상대방이 보낸 메시지만 읽음 처리 (내가 보낸거 말고)
+    const result = await Message.updateMany(
+      {
+        roomId,
+        senderId: { $ne: currentUserId }, // 내가 보낸 메시지 제외
+        isRead: false, // 아직 읽지 않은 메시지만
+      },
+      {
+        $set: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      }
+    );
+
+    res.status(200).json({
+      message: "채팅방의 메시지를 읽음 처리했습니다.",
+      modifiedCount: result.modifiedCount, // 읽은 메시지의 수 
+    });
+  } catch (error) {
+    console.error(`채팅방 메시지 읽음 처리 중 에러 발생:`, error);
+    return res.status(500).json({
+      message: "메시지 읽음 처리 중 오류가 발생했습니다.",
+    });
+  }
+};

@@ -9,6 +9,7 @@ import {
   getRoomMessages,
   sendRoomMessage,
   sendRoomImageMessage,
+  markRoomMessagesAsRead,
 } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -24,6 +25,9 @@ router.post("/", protectedRoute, sendMessage);
 
 //이미지 메시지 전송
 router.post("/send-image", protectedRoute, sendImageMessage);
+
+//채팅방의 모든 메시지 읽음 처리
+router.patch("/:roomId", protectedRoute, markRoomMessagesAsRead);
 
 /*
  * 채팅방(Room) 기반 메시지 라우트
