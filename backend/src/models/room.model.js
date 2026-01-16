@@ -49,11 +49,8 @@ const roomSchema = new mongoose.Schema(
 
     // 마지막 메시지 (채팅방 목록에서 미리보기로 보여줌)
     lastMessage: {
-      text: {
-        type: String,
-        default: "",
-      },
-      //이미지는 "사진을 보냈습니다" 로 대체할 것이므로 속성 불필요
+      type: String,
+      default: "",
     },
 
     // 마지막 메시지 시간

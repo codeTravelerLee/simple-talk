@@ -5,19 +5,23 @@ import axiosInstance from "../api/axiosInstance";
 import { io } from "socket.io-client";
 
 export const useChatStore = create((set, get) => ({
-  users: [],
-  messages: [],
+  users: [], //서비스 가입된 사용자 전체
+
+  messages: [], //하나의 채팅방에서 나눈 메시지의 모음
+
   chats: [], // 채팅 목록
   rooms: [], // 채팅방 목록
+
   selectedChatPartner: null, //선택된 대화상대
   selectedRoom: null, // 선택된 채팅방
   error: null,
 
-  isFetchingUsers: false,
+  isFetchingUsers: false, //서비스 가입된 사용자 불러오기 로딩
   isFetchingMessages: false,
   isFetchingChats: false, // 채팅 목록 로딩
   isFetchingRooms: false, // 채팅방 목록 로딩
   isCreatingRoom: false, // 채팅방 생성 로딩
+
   socket: null,
 
   //서비스 가입된 유저 전체 불러옴
@@ -169,7 +173,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  //메시지 전송
+  //1:1 채팅 메시지 전송
   sendMessage: async (recipientId, message) => {
     try {
       const response = await axiosInstance.post("/api/v1/message", {
@@ -195,7 +199,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  //이미지 메시지 전송
+  //1:1 채팅 이미지 메시지 전송
   sendImageMessage: async (recipientId, imageFile) => {
     try {
       const formData = new FormData();
@@ -252,7 +256,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  //채팅방에서 메시지 보내기
+  //단톡방에서 메시지 보내기
   sendRoomMessage: async (roomId, message) => {
     try {
       const response = await axiosInstance.post("/api/v1/message/room", {
@@ -286,7 +290,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // 채팅방에 이미지 메시지 보내기 
+  // 단톡방에 이미지 메시지 보내기
   sendRoomImageMessage: async (roomId, imageFile) => {
     try {
       const formData = new FormData();
@@ -332,4 +336,5 @@ export const useChatStore = create((set, get) => ({
       throw new Error(errorMessage);
     }
   },
+
 }));

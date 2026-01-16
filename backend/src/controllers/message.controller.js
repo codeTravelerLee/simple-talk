@@ -269,7 +269,7 @@ export const sendRoomMessage = async (req, res) => {
     await newMessage.save();
 
     // 채팅방의 마지막 메시지 업데이트
-    room.lastMessage = { text: message.trim() };
+    room.lastMessage = message.trim();
     room.lastMessageAt = new Date();
     await room.save();
 
@@ -353,7 +353,7 @@ export const sendRoomImageMessage = [
       await newMessage.save();
 
       // 채팅방의 마지막 메시지 업데이트
-      room.lastMessage = { text: "사진을 보냈습니다." };
+      room.lastMessage = "사진을 보냈습니다.";
       room.lastMessageAt = new Date();
       await room.save();
 
