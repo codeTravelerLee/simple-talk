@@ -41,6 +41,11 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    //가장 최근 소켓에 연결된 시간
+    lastSocketConnection: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );

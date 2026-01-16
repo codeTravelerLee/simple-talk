@@ -24,6 +24,10 @@ export const useChatStore = create((set, get) => ({
 
   socket: null,
 
+  // 온라인(웹소켓 접속) 상태 관리
+  onlineUsers: [], // 현재 온라인인 사용자 ID 배열
+  userStatus: {}, // userId를 key로, lastSocketConnection 정보를 value로 저장
+
   //서비스 가입된 유저 전체 불러옴
   getUsers: async () => {
     set({ isFetchingUsers: true, error: null });
@@ -160,14 +164,20 @@ export const useChatStore = create((set, get) => ({
       }));
     });
 
+    // 온라인 사용자 목록 수신
+    socket.on("getConnectedUserId", (connectedUserIds) => {
+      set({ onlineUsers: connectedUserIds });
+    });
+
     set({ socket });
   },
 
   // Socket 연결 해제
   disconnectSocket: () => {
     const { socket } = get();
-    socket.off("newMessage");
     if (socket) {
+      socket.off("newMessage");
+      socket.off("getConnectedUserId");
       socket.disconnect();
       set({ socket: null });
     }
@@ -337,4 +347,49 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // 사용자 1명의 웹소켓 접속 여부 확인(온라인, n분전 활동)
+  getUserStatus: async (userId) => {
+    try {
+      const response = await axiosInstance.get(`/api/v1/user/status/${userId}`);
+      const { lastSocketConnection, isOnline } = response.data;
+
+      // userStatus 업데이트
+      set((state) => ({
+        userStatus: {
+          ...state.userStatus,
+          [userId]: { lastSocketConnection, isOnline },
+        },
+      }));
+
+      return { lastSocketConnection, isOnline };
+    } catch (error) {
+      console.error("Failed to fetch user status:", error);
+      return null;
+    }
+  },
+
+  // 여러 사용자의 웹소켓 접속 상태 일괄 확인
+  getBatchUserStatus: async (userIds) => {
+    try {
+      const response = await axiosInstance.post(
+        "/api/v1/user/socket-connection/status/multiple",
+        {
+          userIds,
+        }
+      );
+
+      // userStatus 업데이트
+      set((state) => ({
+        userStatus: {
+          ...state.userStatus,
+          ...response.data,
+        },
+      }));
+
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch batch user status:", error);
+      return {};
+    }
+  },
 }));

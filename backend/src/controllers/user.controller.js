@@ -181,3 +181,57 @@ export const getUsers = async (req, res) => {
     res.status(500).json({ error: "internal server error..." });
   }
 };
+
+// 사용자 한 명의 웹소켓 연결상태 확인
+export const getUserStatus = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findById(userId).select("lastSocketConnection");
+
+    if (!user) {
+      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+    }
+
+    res.status(200).json({
+      userId: userId,
+      lastSocketConnection: user.lastSocketConnection,
+      isOnline: user.lastSocketConnection === null,
+    });
+  } catch (error) {
+    console.error(`사용자 상태 조회 중 에러 발생: ${error}`);
+    res.status(500).json({ error: "internal server error..." });
+  }
+};
+
+// 여러 사용자의 온라인 상태 일괄 조회
+export const getBatchUserStatus = async (req, res) => {
+  const { userIds } = req.body; // 배열 형태로 받음
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "유효한 사용자 ID 배열이 필요합니다." });
+  }
+
+  try {
+    const users = await User.find({ _id: { $in: userIds } }).select(
+      "_id lastSocketConnection"
+    );
+
+    //각 사용자의 소켓 접속 상태를 저장할 맵
+    const statusMap = {};
+
+    users.forEach((user) => {
+      statusMap[user._id] = {
+        lastSocketConnection: user.lastSocketConnection,
+        isOnline: user.lastSocketConnection === null,
+      };
+    });
+
+    res.status(200).json(statusMap);
+  } catch (error) {
+    console.error(`사용자 상태 일괄 조회 중 에러 발생: ${error}`);
+    res.status(500).json({ error: "internal server error..." });
+  }
+};

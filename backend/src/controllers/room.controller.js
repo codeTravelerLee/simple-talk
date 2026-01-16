@@ -169,10 +169,8 @@ export const getRoomById = async (req, res) => {
 
 //채팅방 나가기
 //본인이 스스로 나가는 경우, 방장이 탈퇴시키는 경우 두 가지로 고려
-//TODO: 방장이 탈퇴하는 경우엔 새로운 방장이 될 사람의 id를 body로 전달
+//방장이 탈퇴하는 경우엔 새로운 방장이 될 사람의 id를 query로 전달
 export const leaveRoom = async (req, res) => {
-  console.log("채팅방 나가기 컨트롤러 진입 성공!");
-
   const { roomId, userId } = req.params; //userId는 탈퇴시킬 대상
   const requesterId = req.user._id;
   const { newRoomManagerId } = req.query; //방장이 탈퇴하는 경우 새로운 방장 id

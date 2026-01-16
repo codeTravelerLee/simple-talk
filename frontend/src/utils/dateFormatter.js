@@ -25,3 +25,32 @@ export const formatDateForChatList = (dateString) => {
       return `${date.getMonth() + 1}월 ${date.getDate()}일`;
   }
 };
+
+// 사용자의 마지막 활동 시간을 포맷팅
+// lastSocketConnection이 null이면 "현재 활동중", 아니면 "n분 전 활동" 형식으로 표시
+export const formatlastSocketConnection = (lastSocketConnection) => {
+  if (!lastSocketConnection) {
+    return "현재 활동중";
+  }
+
+  const date = new Date(lastSocketConnection);
+  const now = new Date();
+  const diffInMs = now - date;
+
+  const diffInSeconds = Math.floor(diffInMs / 1000);
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInSeconds < 60) {
+    return "방금 전 활동함";
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes}분 전 활동함`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours}시간 전 활동함`;
+  } else if (diffInDays < 7) {
+    return `${diffInDays}일 전 활동함`;
+  } else {
+    return `${date.getMonth() + 1}월 ${date.getDate()}일 활동함`;
+  }
+};
