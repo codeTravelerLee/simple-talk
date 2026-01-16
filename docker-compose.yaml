@@ -1,0 +1,104 @@
+# Docker Compose 버전
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:7.0 # Docker Hub의 공식 MongoDB 이미지
+    container_name: simple-talk-mongodb
+    restart: no #개발환경에서 디버깅을 위함
+    ports:
+      - "${MONGO_HOST_PORT}:${MONGO_CONTAINER_PORT}" # 호스트:컨테이너 포트 매핑
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ADMIN_USERNAME} # MongoDB 관리자 계정
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ADMIN_PW} # MongoDB 관리자 비밀번호
+    volumes:
+      - mongodb_data:/data/db # 데이터 영구 저장 (컨테이너 삭제해도 데이터 유지)
+    networks:
+      - simple-talk-backend-network
+
+  redis:
+    image: redis:alpine # 이미지 사용
+    container_name: simple-talk-redis
+    restart: no #개발환경에서 디버깅을 위함
+    command: redis-server --appendonly yes # 데이터 영구 저장 활성화
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - simple-talk-backend-network
+
+  backend:
+    build:
+      context: . # 빌드 컨텍스트: 프로젝트 루트 -> package.json을 루트에 둠. # TODO: 나중에 backend로 변경위해 package.json 백엔드 폴더 내부로 이동 및 부속작업
+      dockerfile: backend/Dockerfile # 사용할 Dockerfile 경로
+    container_name: simple-talk-backend
+    restart: no #개발환경에서 디버깅을 위함
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: ${PORT}
+      MONGO_HOST_PORT: ${MONGO_HOST_PORT}
+      MONGO_CONTAINER_PORT: ${MONGO_CONTAINER_PORT}
+      MONGO_ADMIN_USERNAME: ${MONGO_ADMIN_USERNAME}
+      MONGO_ADMIN_PW: ${MONGO_ADMIN_PW}
+      MONGODB_URI: ${MONGODB_URI} # mongodb://사용자:비밀번호@호스트:포트/데이터베이스
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      REDIS_URL: ${REDIS_URL}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLIENT_URI: ${CLIENT_URI}
+      EMAIL_SERIVE: ${EMAIL_SERIVE}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      NODE_ENV: ${NODE_ENV}
+    #prettier-ignore
+    depends_on: 
+      -mongodb
+      -redis
+
+    volumes:
+      - ./backend:/app/backend # 코드 변경시 자동 반영 (핫 리로드)
+      - /app/node_modules # node_modules는 컨테이너 것 사용
+    networks:
+      - simple-talk-backend-network
+      - simple-talk-frontend-network
+
+  frontend:
+    build:
+      context: ./frontend # Frontend 폴더를 빌드 컨텍스트로
+      dockerfile: Dockerfile
+    container_name: simple-talk-frontend
+    restart: no #개발환경에서 디버깅을 위함
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_MODE=${VITE_MODE}
+      - VITE_SERVER_URI=${VITE_SERVER_URI}
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app # 코드 변경시 자동 반영
+      - /app/node_modules # node_modules는 컨테이너 것 사용
+    networks:
+      - simple-talk-frontend-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# 볼륨 (데이터 영구 저장소)
+volumes:
+  mongodb_data:
+  redis_data:
+
+# Frontend는 backend-network에 직접 접근 불가 (DB 보호)
+networks:
+  simple-talk-frontend-network:
+    driver: bridge
+  simple-talk-backend-network:
+    driver: bridge

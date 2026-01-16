@@ -6,6 +6,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import messageRoutes from "./routes/message.route.js";
+import roomRoutes from "./routes/room.route.js";
 
 import { connectMongo } from "./lib/db/mongoDB.js";
 import { app, server } from "./lib/socket.js";
@@ -34,6 +35,7 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/message", messageRoutes);
+app.use("/api/v1/room", roomRoutes); //채팅방 관련
 
 server.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}...`);

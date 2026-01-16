@@ -7,16 +7,32 @@
 import React from "react";
 import { useChatStore } from "../../store/useChatStore";
 import { formatDateForChatList } from "../../utils/dateFormatter";
+import { Users } from "lucide-react";
 
-const UserItem = ({ user, lastMessage, onClose }) => {
-  const { selectedChatPartner, setSelectedChatPartner } = useChatStore();
+const UserItem = ({ user, room, lastMessage, onClose }) => {
+  const {
+    selectedChatPartner,
+    setSelectedChatPartner,
+    selectedRoom,
+    setSelectedRoom,
+  } = useChatStore();
 
   const handleClick = () => {
-    setSelectedChatPartner(user);
+    if (room) {
+      // 단체채팅방인 경우
+      setSelectedRoom(room);
+      setSelectedChatPartner(null);
+    } else {
+      // 1:1 채팅인 경우
+      setSelectedChatPartner(user);
+      setSelectedRoom(null);
+    }
     if (onClose) onClose();
   };
 
-  const isSelected = selectedChatPartner && user && selectedChatPartner._id === user._id;
+  const isSelected = room
+    ? selectedRoom && selectedRoom._id === room._id
+    : selectedChatPartner && user && selectedChatPartner._id === user._id;
 
   return (
     <div
@@ -27,7 +43,10 @@ const UserItem = ({ user, lastMessage, onClose }) => {
     >
       <div className="flex items-center space-x-3">
         <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-          {user?.profileImg ? (
+          {room ? (
+            // 단체채팅방인 경우
+            <Users className="text-gray-600" size={20} />
+          ) : user?.profileImg ? (
             <img
               src={user.profileImg}
               alt={user?.fullName}
@@ -43,8 +62,9 @@ const UserItem = ({ user, lastMessage, onClose }) => {
           )}
         </div>
         <div className="flex-1 min-w-0">
+          {/* 친구 이름이나 단톡방의 이름이 표시되는 영역 */}
           <p className="text-sm font-medium text-gray-900 truncate">
-            {user?.fullName}
+            {room ? room.name : user?.fullName}
           </p>
           <p className="text-xs text-gray-500 truncate">
             {/* 
@@ -53,11 +73,21 @@ const UserItem = ({ user, lastMessage, onClose }) => {
             lastMessage가 없으면 친구 탭을 선택한 경우이므로 user.email을 표시 
              */}
             {lastMessage
-              ? lastMessage.message || "사진을 보냈습니다."
+              ? room
+                ? room.lastMessage.text //message.controller.js의 sendRoomImageMessage함수에서 이미지 전송시 lastMessage를 "사진을 보냈습니다" 로 자동 설정하고 있기에, lastMessage를 받아오면 됨
+                : lastMessage.message || "사진을 보냈습니다."
               : user?.email}
 
             {/* 몇분전 나눈 채팅인지 표시  */}
-            {lastMessage?.createdAt ? (
+            {room ? (
+              // 단체채팅방인 경우 lastMessageAt 사용
+              room.lastMessageAt ? (
+                <span className="ml-2 text-xs text-gray-400">
+                  {formatDateForChatList(room.lastMessageAt)}
+                </span>
+              ) : null
+            ) : lastMessage?.createdAt ? (
+              // 개인채팅인 경우 lastMessage.createdAt 사용
               <span className="ml-2 text-xs text-gray-400">
                 {formatDateForChatList(lastMessage.createdAt)}
               </span>

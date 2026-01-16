@@ -1,4 +1,5 @@
 import Message from "../models/message.model.js";
+import Room from "../models/room.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import multer from "multer";
 import { emitMessage } from "../lib/socket.js";
@@ -170,6 +171,214 @@ export const sendImageMessage = [
     } catch (error) {
       console.error(`이미지 메시지 전송 중 에러 발생: ${error}`);
       res.status(500).json({ error: "internal server error..." });
+    }
+  },
+];
+
+/*
+ * ========================================
+ * 채팅방(Room) 기반 메시지 함수들
+ * ========================================
+ */
+
+//특정 채팅방의 모든 메시지 불러오기
+export const getRoomMessages = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const currentUserId = req.user._id;
+
+    // 채팅방이 존재하는지 확인
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({
+        message: "채팅방을 찾을 수 없습니다.",
+      });
+    }
+
+    // 본인이 참여자인지 확인
+    const isParticipant = room.participants.some(
+      (participantId) => participantId.toString() === currentUserId.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "이 채팅방에 접근할 권한이 없습니다.",
+      });
+    }
+
+    // 채팅방의 모든 메시지 가져오기 (시간순 정렬)
+    const messages = await Message.find({ roomId })
+      .populate("senderId", "fullName email profileImg")
+      .sort({ createdAt: 1 }); // 오래된 메시지부터
+
+    const responseSentence =
+      messages.length === 0
+        ? "아직 메시지가 없습니다."
+        : "채팅 내역을 불러왔습니다.";
+
+    res.status(200).json({
+      message: responseSentence,
+      messagesArray: messages,
+    });
+  } catch (error) {
+    console.error(`채팅방 메시지 조회 중 에러 발생:`, error);
+    res.status(500).json({
+      message: "채팅방 메시지 조회 중 오류가 발생했습니다.",
+    });
+  }
+};
+
+//채팅방에서 메시지 보내기
+export const sendRoomMessage = async (req, res) => {
+  try {
+    const { roomId, message } = req.body;
+    const senderId = req.user._id;
+
+    // 메시지 내용 확인
+    if (!message || message.trim() === "") {
+      return res.status(400).json({
+        message: "메시지 내용을 입력해주세요.",
+      });
+    }
+
+    // 채팅방 존재 및 권한 확인
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({
+        message: "채팅방을 찾을 수 없습니다.",
+      });
+    }
+
+    const isParticipant = room.participants.some(
+      (participantId) => participantId.toString() === senderId.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "이 채팅방에 메시지를 보낼 권한이 없습니다.",
+      });
+    }
+
+    // 메시지 생성
+    const newMessage = new Message({
+      senderId,
+      roomId,
+      message: message.trim(),
+    });
+
+    await newMessage.save();
+
+    // 채팅방의 마지막 메시지 업데이트
+    room.lastMessage = message.trim();
+    room.lastMessageAt = new Date();
+    await room.save();
+
+    // 메시지를 populate해서 반환
+    const populatedMessage = await Message.findById(newMessage._id).populate(
+      "senderId",
+      "fullName email profileImg"
+    );
+
+    // 실시간 전송 (채팅방의 모든 참여자에게)
+    room.participants.forEach((participantId) => {
+      if (participantId.toString() !== senderId.toString()) {
+        emitMessage(participantId, populatedMessage);
+      }
+    });
+
+    res.status(201).json({
+      message: "메시지가 성공적으로 전송되었습니다.",
+      newMessage: populatedMessage,
+    });
+  } catch (error) {
+    console.error(`채팅방 메시지 전송 중 에러 발생:`, error);
+    res.status(500).json({
+      message: "메시지 전송 중 오류가 발생했습니다.",
+    });
+  }
+};
+
+//채팅방에 이미지 메시지 보내기
+export const sendRoomImageMessage = [
+  upload.single("image"),
+
+  async (req, res) => {
+    try {
+      const { roomId } = req.body;
+      const senderId = req.user._id;
+
+      if (!req.file) {
+        return res.status(400).json({
+          message: "이미지 파일이 필요합니다.",
+        });
+      }
+
+      // 채팅방 존재 및 권한 확인
+      const room = await Room.findById(roomId);
+      if (!room) {
+        return res.status(404).json({
+          message: "채팅방을 찾을 수 없습니다.",
+        });
+      }
+
+      const isParticipant = room.participants.some(
+        (participantId) => participantId.toString() === senderId.toString()
+      );
+
+      if (!isParticipant) {
+        return res.status(403).json({
+          message: "이 채팅방에 메시지를 보낼 권한이 없습니다.",
+        });
+      }
+
+      // Cloudinary에 이미지 업로드
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "room_messages" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+
+      // 메시지 생성
+      const newMessage = new Message({
+        senderId,
+        roomId,
+        image: uploadResult.secure_url,
+      });
+
+      await newMessage.save();
+
+      // 채팅방의 마지막 메시지 업데이트
+      room.lastMessage = "사진을 보냈습니다.";
+      room.lastMessageAt = new Date();
+      await room.save();
+
+      // 메시지 populate
+      const populatedMessage = await Message.findById(newMessage._id).populate(
+        "senderId",
+        "fullName email profileImg"
+      );
+
+      // 전송
+      room.participants.forEach((participantId) => {
+        if (participantId.toString() !== senderId.toString()) {
+          emitMessage(participantId, populatedMessage);
+        }
+      });
+
+      res.status(201).json({
+        message: "이미지가 성공적으로 전송되었습니다.",
+        newMessage: populatedMessage,
+      });
+    } catch (error) {
+      console.error(`채팅방 이미지 전송 중 에러 발생:`, error);
+      res.status(500).json({
+        message: "이미지 전송 중 오류가 발생했습니다.",
+      });
     }
   },
 ];
