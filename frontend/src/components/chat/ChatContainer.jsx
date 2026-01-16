@@ -12,6 +12,7 @@ const ChatContainer = () => {
     selectedChatPartner,
     selectedRoom,
     messages,
+    rooms,
     getMessageByRecipientId,
     getRoomMessages,
     sendMessage,
@@ -38,12 +39,26 @@ const ChatContainer = () => {
       try {
         if (selectedRoom) {
           await getRoomMessages(selectedRoom._id); // 단체채팅방 메시지 불러오기
+          // 읽음 처리
+          await markRoomMessagesAsRead(selectedRoom._id, currentUserId);
         } else if (selectedChatPartner) {
           await getMessageByRecipientId(selectedChatPartner._id); // 1:1 채팅 메시지 불러오기
-        }
-        // 메시지 읽음 처리
-        if (selectedRoom) {
-          await markRoomMessagesAsRead(selectedRoom._id);
+
+          // 1:1 채팅의 roomId 찾기
+          const chatRoom = rooms.find(
+            (room) =>
+              !room.isGroupChat &&
+              room.participants.some(
+                (p) =>
+                  (typeof p === "object" ? p._id : p) ===
+                  selectedChatPartner._id
+              )
+          );
+
+          if (chatRoom) {
+            // 읽음 처리
+            await markRoomMessagesAsRead(chatRoom._id, currentUserId);
+          }
         }
       } catch (error) {
         console.error("메시지 불러오기 실패:", error);
@@ -57,6 +72,8 @@ const ChatContainer = () => {
     getRoomMessages,
     getMessageByRecipientId,
     markRoomMessagesAsRead,
+    rooms,
+    currentUserId,
   ]);
 
   useEffect(() => {
@@ -235,6 +252,13 @@ const ChatContainer = () => {
                     }`}
                   >
                     <div className="flex items-end gap-1">
+                      {/* 내가 보낸 메시지에만 읽음 표시 (왼쪽) */}
+                      {isMyMessage && (
+                        <span className="text-xs text-gray-500 mb-1">
+                          {message.isRead ? "읽음" : "안읽음"}
+                        </span>
+                      )}
+
                       <div className="flex flex-col max-w-xs lg:max-w-md">
                         {/* 단체 채팅이고 내 메시지가 아니면 보낸 사람 이름 표시 */}
                         {selectedRoom?.isGroupChat && !isMyMessage && (
@@ -266,13 +290,6 @@ const ChatContainer = () => {
                           </p>
                         </div>
                       </div>
-
-                      {/* 상대방이 보낸 메시지에만 읽음 표시 (오른쪽) */}
-                      {!isMyMessage && (
-                        <span className="text-xs text-gray-500 mb-1">
-                          {message.isRead ? "읽음" : "안읽음"}
-                        </span>
-                      )}
                     </div>
                   </div>
                 );

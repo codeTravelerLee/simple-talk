@@ -3,7 +3,6 @@ import toast from "react-hot-toast";
 
 import axiosInstance from "../api/axiosInstance";
 import { io } from "socket.io-client";
-import { useAuthStore } from "./useAuthStore";
 
 export const useChatStore = create((set, get) => ({
   users: [], //서비스 가입된 사용자 전체
@@ -180,11 +179,42 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         messages: [...state.messages, message],
       }));
+
+      // rooms 목록의 lastMessage 업데이트 및 정렬
+      if (message.roomId) {
+        set((state) => {
+          const updatedRooms = state.rooms.map((room) =>
+            room._id === message.roomId
+              ? {
+                  ...room,
+                  lastMessage: message.message || "사진을 보냈습니다.",
+                  lastMessageAt: new Date(message.createdAt),
+                }
+              : room
+          );
+          // 최신 메시지 순으로 정렬
+          updatedRooms.sort(
+            (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+          );
+          return { rooms: updatedRooms };
+        });
+      }
     });
 
     // 온라인 사용자 목록 수신
     socket.on("getConnectedUserId", (connectedUserIds) => {
       set({ onlineUsers: connectedUserIds });
+    });
+
+    // 읽음 상태 업데이트 수신
+    socket.on("messagesRead", ({ roomId, readByUserId }) => {
+      set((state) => ({
+        messages: state.messages.map((msg) =>
+          msg.roomId === roomId && msg.senderId === readByUserId
+            ? { ...msg, isRead: true, readAt: new Date().toISOString() }
+            : msg
+        ),
+      }));
     });
 
     set({ socket });
@@ -196,6 +226,7 @@ export const useChatStore = create((set, get) => ({
     if (socket) {
       socket.off("newMessage");
       socket.off("getConnectedUserId");
+      socket.off("messagesRead");
       socket.disconnect();
       set({ socket: null });
     }
@@ -244,6 +275,20 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         messages: [...state.messages, newMessage],
       }));
+
+      // 채팅방 목록의 lastMessage 업데이트 및 정렬
+      set((state) => {
+        const updatedRooms = state.rooms.map((room) =>
+          room._id === roomId
+            ? { ...room, lastMessage: message, lastMessageAt: new Date() }
+            : room
+        );
+        // 최신 메시지 순으로 정렬
+        updatedRooms.sort(
+          (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+        );
+        return { rooms: updatedRooms };
+      });
 
       return newMessage;
     } catch (error) {
@@ -305,6 +350,20 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         messages: [...state.messages, newMessage],
       }));
+
+      // 채팅방 목록의 lastMessage 업데이트 및 정렬
+      set((state) => {
+        const updatedRooms = state.rooms.map((room) =>
+          room._id === roomId
+            ? { ...room, lastMessage: "[이미지]", lastMessageAt: new Date() }
+            : room
+        );
+        // 최신 메시지 순으로 정렬
+        updatedRooms.sort(
+          (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+        );
+        return { rooms: updatedRooms };
+      });
 
       return newMessage;
     } catch (error) {
@@ -370,14 +429,19 @@ export const useChatStore = create((set, get) => ({
         messages: [...state.messages, newMessage],
       }));
 
-      // 채팅방 목록의 lastMessage 업데이트
-      set((state) => ({
-        rooms: state.rooms.map((room) =>
+      // 채팅방 목록의 lastMessage 업데이트 및 정렬
+      set((state) => {
+        const updatedRooms = state.rooms.map((room) =>
           room._id === roomId
             ? { ...room, lastMessage: message, lastMessageAt: new Date() }
             : room
-        ),
-      }));
+        );
+        // 최신 메시지 순으로 정렬
+        updatedRooms.sort(
+          (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+        );
+        return { rooms: updatedRooms };
+      });
 
       return newMessage;
     } catch (error) {
@@ -413,9 +477,9 @@ export const useChatStore = create((set, get) => ({
         messages: [...state.messages, newMessage],
       }));
 
-      // 채팅방 목록의 lastMessage 업데이트
-      set((state) => ({
-        rooms: state.rooms.map((room) =>
+      // 채팅방 목록의 lastMessage 업데이트 및 정렬
+      set((state) => {
+        const updatedRooms = state.rooms.map((room) =>
           room._id === roomId
             ? {
                 ...room,
@@ -423,8 +487,13 @@ export const useChatStore = create((set, get) => ({
                 lastMessageAt: new Date(),
               }
             : room
-        ),
-      }));
+        );
+        // 최신 메시지 순으로 정렬
+        updatedRooms.sort(
+          (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+        );
+        return { rooms: updatedRooms };
+      });
 
       return newMessage;
     } catch (error) {
@@ -483,7 +552,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   //채팅방에서 상대방이 보낸 메시지를 읽음 처리
-  markRoomMessagesAsRead: async (roomId) => {
+  markRoomMessagesAsRead: async (roomId, currentUserId) => {
     set({ error: null });
     try {
       const response = await axiosInstance.patch(`/api/v1/message/${roomId}`);
@@ -498,9 +567,6 @@ export const useChatStore = create((set, get) => ({
           // senderId가 객체인 경우와 문자열인 경우 모두 처리
           const msgSenderId =
             typeof msg.senderId === "object" ? msg.senderId?._id : msg.senderId;
-
-          // useAuthStore에서 현재 사용자 ID 가져오기
-          const currentUserId = useAuthStore.getState().authUser?._id;
 
           if (
             msg.roomId === roomId &&

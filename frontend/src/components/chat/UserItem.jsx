@@ -6,6 +6,8 @@
 */
 import React, { useEffect, useState } from "react";
 import { useChatStore } from "../../store/useChatStore";
+import { useAuthStore } from "../../store/useAuthStore";
+
 import {
   formatDateForChatList,
   formatlastSocketConnection,
@@ -21,7 +23,11 @@ const UserItem = ({ user, room, lastMessage, onClose }) => {
     onlineUsers,
     userStatus,
     getUserStatus,
+    markRoomMessagesAsRead,
   } = useChatStore();
+
+  const { authUser } = useAuthStore();
+  const currentUserId = authUser?._id;
 
   const [localLastSocketConnection, setLocalLastSocketConnection] =
     useState(null);
@@ -46,15 +52,17 @@ const UserItem = ({ user, room, lastMessage, onClose }) => {
     }
   }, [user, userStatus]);
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (room) {
       // 단체채팅방인 경우
       setSelectedRoom(room);
       setSelectedChatPartner(null);
+      await markRoomMessagesAsRead(room._id, currentUserId);
     } else {
       // 1:1 채팅인 경우
       setSelectedChatPartner(user);
       setSelectedRoom(null);
+      await markRoomMessagesAsRead(room._id, currentUserId);
     }
     if (onClose) onClose();
   };

@@ -3,12 +3,12 @@ import Room from "../models/room.model.js";
 
 import cloudinary from "../lib/cloudinary.js";
 import multer from "multer";
-import { emitMessage } from "../lib/socket.js";
+import { emitMessage, emitMessagesRead } from "../lib/socket.js";
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-//로그인된 유저가 채팅한 상대방 목록을 불러오는 함수
+//채팅내역에 표시될 항목을 가져오는 함수(1:1채팅, 단체 채팅 모두 포함)
 export const getChatList = async (req, res) => {
   const myId = req.user._id;
 
@@ -113,7 +113,7 @@ export const sendMessage = async (req, res) => {
       receiverId,
       roomId,
       message: message.trim(),
-      isRead: true, // 자신이 보낸 메시지는 자동으로 읽음 처리
+      isRead: false,
       readAt: new Date(),
     });
 
@@ -162,7 +162,7 @@ export const sendImageMessage = [
         receiverId,
         roomId,
         image: uploadResult.secure_url,
-        isRead: true, // 자신이 보낸 메시지는 자동으로 읽음 처리
+        isRead: false,
         readAt: new Date(),
       });
 
@@ -271,7 +271,7 @@ export const sendRoomMessage = async (req, res) => {
       senderId,
       roomId,
       message: message.trim(),
-      isRead: true, // 자신이 보낸 메시지는 읽음 상태
+      isRead: false,
       readAt: new Date(),
     });
 
@@ -357,7 +357,7 @@ export const sendRoomImageMessage = [
         senderId,
         roomId,
         image: uploadResult.secure_url,
-        isRead: true, // 자신이 보낸 메시지는 읽음 상태
+        isRead: false,
         readAt: new Date(),
       });
 
@@ -434,6 +434,9 @@ export const markRoomMessagesAsRead = async (req, res) => {
         },
       }
     );
+
+    // 실시간으로 채팅방의 다른 참여자들에게 읽음 상태 알림
+    emitMessagesRead(roomId, room.participants, currentUserId);
 
     res.status(200).json({
       message: "채팅방의 메시지를 읽음 처리했습니다.",

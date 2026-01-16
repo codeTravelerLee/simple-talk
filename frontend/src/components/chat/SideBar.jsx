@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { useChatStore } from "../../store/useChatStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import UserItem from "./UserItem";
 import CreateChatModal from "./CreateChatModal";
 import { Plus } from "lucide-react";
@@ -24,6 +25,8 @@ const SideBar = ({ onClose }) => {
     setSelectedChatPartner,
     setSelectedRoom,
   } = useChatStore();
+
+  const { authUser } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState("friends");
   const [isCreateChatModalOpen, setIsCreateChatModalOpen] = useState(false);
@@ -75,36 +78,38 @@ const SideBar = ({ onClose }) => {
     }
 
     //activeTab이 "chats" 탭인 경우
-    //1:1 채팅과 room 채팅 컨트롤러에서 반환하는 데이터의 구조가 다르므로, 이 둘을 합치기 전 구조를 통일화
-    const normalizedChats = chats
-      .filter((chat) => chat.user)
-      .map((chat) => ({
-        _id: chat._id,
-        isGroupChat: false,
-        user: chat.user,
-        room: null,
-        lastMessage: chat.lastMessage,
-        lastMessageTime: chat.lastMessage?.createdAt || chat.updatedAt,
-      }));
-
-    const normalizedRooms = rooms
-      .filter((room) => room.isGroupChat)
-      .map((room) => ({
+    // rooms에 1:1 채팅과 단체 채팅이 모두 포함되어 있으므로 rooms만 사용
+    const normalizedRooms = rooms.map((room) => {
+      // 1:1 채팅방인 경우 상대방 정보 찾기
+      if (!room.isGroupChat) {
+        const partner = room.participants?.find((p) => p._id !== authUser?._id);
+        return {
+          _id: room._id,
+          isGroupChat: false,
+          user: partner, // 1:1 채팅방의 상대방
+          room: room,
+          lastMessage: room.lastMessage,
+          lastMessageTime: room.lastMessageAt || room.updatedAt,
+        };
+      }
+      // 단체 채팅방인 경우
+      return {
         _id: room._id,
         isGroupChat: true,
         user: null,
         room: room,
         lastMessage: room.lastMessage,
         lastMessageTime: room.lastMessageAt || room.updatedAt,
-      }));
+      };
+    });
 
-    // 정규화된 데이터를 합치고 최근 메시지 시간 기준으로 정렬
-    return [...normalizedChats, ...normalizedRooms].sort((a, b) => {
+    // 최근 메시지 시간 기준으로 정렬
+    return normalizedRooms.sort((a, b) => {
       const timeA = new Date(a.lastMessageTime || 0);
       const timeB = new Date(b.lastMessageTime || 0);
       return timeB - timeA;
     });
-  }, [activeTab, users, chats, rooms]);
+  }, [activeTab, users, chats, rooms, authUser]);
 
   const isFetching =
     activeTab === "friends"

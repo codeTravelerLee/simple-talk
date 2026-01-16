@@ -65,3 +65,16 @@ export const emitMessage = (receiverId, message) => {
     io.to(receiverSocketId).emit("newMessage", message);
   }
 };
+
+// 읽음 처리 시 실시간으로 해당 채팅방의 모든 참여자에게 알림
+export const emitMessagesRead = (roomId, participantIds, readByUserId) => {
+  participantIds.forEach((participantId) => {
+    const participantIdStr = participantId.toString();
+    if (participantIdStr !== readByUserId.toString()) {
+      const socketId = userSocketMap[participantIdStr];
+      if (socketId) {
+        io.to(socketId).emit("messagesRead", { roomId, readByUserId });
+      }
+    }
+  });
+};
