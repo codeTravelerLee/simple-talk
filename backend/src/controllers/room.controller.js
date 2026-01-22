@@ -1,22 +1,83 @@
+import Message from "../models/message.model.js";
 import Room from "../models/room.model.js";
 import User from "../models/user.model.js";
-import { getUsers } from "./user.controller.js";
 
-/**
- * 채팅방 생성
- *
- * 동작 방식:
- * 1. 프론트엔드에서 참여자 ID 목록과 방 이름을 보냄
- * 2. 참여자가 2명 이상인지 확인
- * 3. 단체 채팅인 경우 방 이름이 있는지 확인
- * 4. 데이터베이스에 채팅방 생성
- * 5. 생성된 채팅방 정보를 프론트엔드에 보냄
- *
- * @param {Object} req - 요청 객체
- * @param {Array} req.body.participantIds - 참여자 ID 배열
- * @param {String} req.body.name - 채팅방 이름 (단체 채팅일 때 필수)
- * @param {Object} res - 응답 객체
- */
+//내가 속한 채팅방 목록 전체 불러오기
+export const getAllChattingRooms = async (req, res) => {
+  const myId = req.user._id;
+
+  try {
+    const chattingRoomsList = await Room.find({
+      "participants.userId": myId,
+    })
+      .populate("participants.userId", "fullName email profileImg")
+      .populate("lastMessage")
+      .sort({ updatedAt: -1 });
+
+    res.status(200).json({
+      message: "내가 속한 모든 채팅방을 불러왔습니다.",
+      roomsArray: chattingRoomsList,
+    });
+  } catch (error) {
+    console.error("내가 속한 채팅방 불러오기 오류:", error);
+    res.status(500).json({
+      message: "내가 속한 채팅방을 불러오는 중 오류가 발생했습니다.",
+    });
+  }
+};
+
+//특정 대화방의 채팅내역을 불러오는 함수 - 채팅방 진입시 호출
+//채팅방 내에서 주고받은 메시지를 말풍선 안에 뿌려주는 형태로 활용
+export const getAllMessages = async (req, res) => {
+  const { id: roomId } = req.params;
+  const myId = req.user._id;
+
+  const MESSAGE_LIMIT_SIZE = 50; //한 번에 불러올 메시지 개수 제한 
+
+  try {
+    const messages = await Message.find({ roomId: roomId })
+      .populate("senderId", "username profileImage")
+      .sort({
+        createdAt: -1,
+      })
+      .limit(MESSAGE_LIMIT_SIZE)
+      .then((msgs) => msgs.reverse());
+
+    //메시지 읽음 처리 - 해당 API는 채팅방에 진입할 때 호출되므로, 불러온 메시지들을 모두 읽음 처리
+    if (messages.length > 0) {
+      const lastMessageId = messages[messages.length - 1]._id;
+
+      await Room.updateOne(
+        { _id: roomId, "participants.userId": myId },
+        {
+          $set: {
+            "participants.$.lastReadMessageId": lastMessageId,
+            "participants.$.lastReadAt": new Date(),
+          },
+        }
+      );
+
+      await Message.updateMany(
+        { roomId: roomId, senderId: { $ne: myId }, readBy: { $ne: myId } },
+        { $addToSet: { readBy: myId } }
+      );
+    }
+
+    //성공 응답시 보낼 멘트
+    const responseSentence =
+      messages.length === 0
+        ? "나눈 대화내역이 없어요."
+        : "채팅 내역을 불러왔어요.";
+
+    res.status(200).json({
+      message: responseSentence,
+      messagesArray: messages,
+    });
+  } catch (error) {
+    console.error(`채팅 내역 불러오는 도중 에러 발생: ${error}`);
+    res.status(500).json({ error: "internal server error..." });
+  }
+};
 
 //채팅방 생성 (1:1, 단톡 포괄)
 export const createRoom = async (req, res) => {
@@ -106,28 +167,6 @@ export const createRoom = async (req, res) => {
     console.error("채팅방 생성 오류:", error);
     res.status(500).json({
       message: "채팅방 생성 중 오류가 발생했습니다.",
-    });
-  }
-};
-
-//내가 속한 채팅방 목록 가져오기
-export const getRooms = async (req, res) => {
-  try {
-    const currentUserId = req.user._id;
-
-    // 내가 참여중인 모든 채팅방 찾기
-    const rooms = await Room.find({
-      participants: { $in: [currentUserId] }, // 참여자 목록에 내가 있는 방들
-    })
-      .populate("participants", "fullName email profileImg") // 참여자 정보
-      .populate("createdBy", "fullName email") // 방 만든 사람 정보
-      .sort({ lastMessageAt: -1 }); // 최근 메시지 순으로 정렬
-
-    res.status(200).json(rooms);
-  } catch (error) {
-    console.error("채팅방 목록 조회 오류:", error);
-    res.status(500).json({
-      message: "채팅방 목록 조회 중 오류가 발생했습니다.",
     });
   }
 };
