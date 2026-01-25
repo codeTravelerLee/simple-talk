@@ -32,11 +32,11 @@ export const getAllMessages = async (req, res) => {
   const { id: roomId } = req.params;
   const myId = req.user._id;
 
-  const MESSAGE_LIMIT_SIZE = 50; //한 번에 불러올 메시지 개수 제한 
+  const MESSAGE_LIMIT_SIZE = 50; //한 번에 불러올 메시지 개수 제한
 
   try {
     const messages = await Message.find({ roomId: roomId })
-      .populate("senderId", "username profileImage")
+      .populate("senderId", "fullName profileImg")
       .sort({
         createdAt: -1,
       })
@@ -54,12 +54,12 @@ export const getAllMessages = async (req, res) => {
             "participants.$.lastReadMessageId": lastMessageId,
             "participants.$.lastReadAt": new Date(),
           },
-        }
+        },
       );
 
       await Message.updateMany(
         { roomId: roomId, senderId: { $ne: myId }, readBy: { $ne: myId } },
-        { $addToSet: { readBy: myId } }
+        { $addToSet: { readBy: myId } },
       );
     }
 
@@ -99,13 +99,13 @@ export const createRoom = async (req, res) => {
       });
     }
 
-    // 본인도 참여자에 포함 (중복 방지)
-    const allParticipants = [
+    // 본인도 참여자에 포함
+    const allParticipantsIdArray = [
       ...new Set([currentUserId.toString(), ...participantIds]),
     ];
 
     //  단체 채팅인지 확인 (3명 이상이면 단체 채팅)
-    const isGroupChat = allParticipants.length >= 3;
+    const isGroupChat = allParticipantsIdArray.length >= 3;
 
     // 단체 채팅인데 이름이 없으면 에러
     if (isGroupChat && !name) {
@@ -117,19 +117,21 @@ export const createRoom = async (req, res) => {
     // 1:1 채팅인 경우, 이미 존재하는 방이 있는지 확인
     if (!isGroupChat) {
       const existingRoom = await Room.findOne({
-        isGroupChat: false,
-        participants: { $all: allParticipants, $size: allParticipants.length },
+        roomType: "private",
+        "participants.userId": {
+          $all: allParticipantsIdArray,
+          $size: allParticipantsIdArray.length,
+        },
       });
 
       if (existingRoom) {
-        // 이미 1:1 채팅방이 있으면 그 방을 반환
         return res.status(200).json(existingRoom);
       }
     }
 
     // 참여자가 실제로 존재하는 사용자인지 확인
-    const users = await User.find({ _id: { $in: allParticipants } });
-    if (users.length !== allParticipants.length) {
+    const users = await User.find({ _id: { $in: allParticipantsIdArray } });
+    if (users.length !== allParticipantsIdArray.length) {
       return res.status(400).json({
         message: "대화를 나눌 수 없는 상대가 포함되어 있어요.",
       });
@@ -139,28 +141,32 @@ export const createRoom = async (req, res) => {
     let roomName = name;
     if (!isGroupChat) {
       // 1:1 채팅은 상대방 이름이 곧 방의 이름이 된다
-      const singleChatPartner = users.find(
-        (user) => user._id.toString() !== currentUserId.toString()
+      const privateChatPartner = users.find(
+        (user) => user._id.toString() !== currentUserId.toString(),
       );
-      roomName = singleChatPartner.fullName;
+      roomName = privateChatPartner.fullName;
     }
 
-    // 채팅방 생성
+    // DB 스키마에 맞게 참여자 데이터 생성
+    const participants = allParticipantsIdArray.map((id) => ({
+      userId: id,
+      lastReadMessageId: null,
+      lastReadAt: new Date(),
+    }));
+
     const newRoom = new Room({
-      name: roomName,
-      participants: allParticipants,
-      isGroupChat,
-      createdBy: currentUserId,
-      lastMessage: "",
-      lastMessageAt: new Date(),
+      roomName,
+      participants,
+      roomType: isGroupChat ? "group" : "private",
+      admin: currentUserId,
     });
 
     await newRoom.save();
 
     // 참여자 정보를 포함해서 반환 (populate)
     const populatedRoom = await Room.findById(newRoom._id)
-      .populate("participants", "fullName email profileImg")
-      .populate("createdBy", "fullName email");
+      .populate("participants.userId", "fullName email profileImg")
+      .populate("admin", "fullName email");
 
     res.status(201).json(populatedRoom);
   } catch (error) {
@@ -171,29 +177,22 @@ export const createRoom = async (req, res) => {
   }
 };
 
+//id에 맞는 room정보 반환
 export const getRoomById = async (req, res) => {
   try {
     const { roomId } = req.params;
     const currentUserId = req.user._id;
 
-    const room = await Room.findById(roomId)
-      .populate("participants", "fullName email profileImg")
-      .populate("createdBy", "fullName email");
+    const room = await Room.findOne({
+      _id: roomId,
+      "participants.userId": currentUserId,
+    })
+      .populate("participants.userId", "fullName email profileImg")
+      .populate("admin", "fullName email");
 
     if (!room) {
       return res.status(404).json({
         message: "채팅방을 찾을 수 없습니다.",
-      });
-    }
-
-    // 본인이 참여자인지 확인
-    const isParticipant = room.participants.some(
-      (participant) => participant._id.toString() === currentUserId.toString()
-    );
-
-    if (!isParticipant) {
-      return res.status(403).json({
-        message: "이 채팅방에 접근할 권한이 없습니다.",
       });
     }
 
@@ -207,56 +206,58 @@ export const getRoomById = async (req, res) => {
 };
 
 //채팅방 나가기
-//본인이 스스로 나가는 경우, 방장이 탈퇴시키는 경우 두 가지로 고려
+//본인이 스스로 나가는 경우, 방장이 강퇴시키는 경우 두 가지로 고려
 //방장이 탈퇴하는 경우엔 새로운 방장이 될 사람의 id를 query로 전달
 export const leaveRoom = async (req, res) => {
-  const { roomId, userId } = req.params; //userId는 탈퇴시킬 대상
+  const { roomId, leaveUserId } = req.params; //leaveUserId는 탈퇴시킬 대상
   const requesterId = req.user._id;
-  const { newRoomManagerId } = req.query; //방장이 탈퇴하는 경우 새로운 방장 id
+  const { newRoomAdminId } = req.query; //방장이 탈퇴하는 경우 새로운 방장 id
 
   try {
-    const room = await Room.findById(roomId);
+    const room = await Room.findOne({
+      _id: roomId,
+      "participants.userId": requesterId,
+    });
 
     if (!room)
       return res.status(404).json({ message: "채팅방을 찾을 수 없습니다." });
 
     //채팅방 탈퇴의 경우의 수
-    const isSelfLeaving = requesterId.toString() === userId; //자기 스스로 나가는 경우
-    const isManagerLeavingAnother =
-      room.createdBy.toString() === requesterId.toString() && !isSelfLeaving; //방장이 다른 사람을 탈퇴시키는 경우
+    const isSelfLeaving = requesterId.toString() === leaveUserId; //자기 스스로 나가는 경우
+    const isAdminLeavingAnother =
+      room.admin.toString() === requesterId.toString() && !isSelfLeaving; //방장이 다른 사람을 탈퇴시키는 경우
 
     //자기 스스로 나가는 것도 아니고 방장도 아니면 탈퇴 권한 없음
-    if (!isSelfLeaving && !isManagerLeavingAnother) {
+    if (!isSelfLeaving && !isAdminLeavingAnother) {
       return res
         .status(403)
         .json({ message: "해당 사용자를 탈퇴시킬 권한이 없습니다!" });
     }
 
-    const isRoomManager = room.createdBy.toString() === requesterId.toString();
+    const isRoomAdmin = room.admin.toString() === requesterId.toString();
 
-    //방장이 스스로 나가는 경우 새로운 방장 지정
-    if (isSelfLeaving && isRoomManager) {
-      // 새로운 방장을 지정하지 않은 경우
-      if (!newRoomManagerId) {
+    //방장이 스스로 나가는 경우 새로운 방장 지정 필수
+    if (isSelfLeaving && isRoomAdmin) {
+      if (!newRoomAdminId) {
         return res.status(400).json({
           message: "방장이 탈퇴하는 경우 새로운 방장을 지정해야 합니다!",
         });
       }
 
       //새로운 방장이 참여자 목록에 있는지 확인
-      if (!room.participants.includes(newRoomManagerId)) {
+      if (!room.participants.includes(newRoomAdminId)) {
         return res
           .status(400)
           .json({ message: "새로운 방장은 채팅방의 참여자여야 합니다!" });
       }
 
       //새로운 방장 지정
-      room.createdBy = newRoomManagerId;
+      room.admin = newRoomAdminId;
     }
 
     //room의 participants에서 탈퇴한 사용자 제거
     room.participants = room.participants.filter(
-      (participantId) => participantId.toString() !== userId
+      (participant) => participant.userId.toString() !== leaveUserId.toString(),
     );
 
     await room.save();
@@ -276,49 +277,50 @@ export const inviteMembersToRoom = async (req, res) => {
   const { memberIdArray } = req.body; //초대할 멤버들의 id가 담긴 배열
 
   try {
-    const serviceUsersArray = await User.find({
-      _id: { $ne: req.user._id },
-    }).select("_id"); //서비스에 가입된 사용자의 id 배열
+    //회원가입이 안 된 사용자 초대 방지
+    const inServiceUsersIdArray = await User.find({
+      _id: { $in: memberIdArray },
+    }).select("_id");
 
-    //채팅방에 초대하고자 하는 사용자 중 서비스에 가입되지 않은 id가 포함되어 있는지 확인
-    memberIdArray.forEach((memberId) => {
-      const isUserExist = serviceUsersArray.some(
-        (serviceUser) => serviceUser._id.toString() === memberId
-      );
-
-      if (!isUserExist)
-        return res.status(400).json({
-          message:
-            "초대하려는 사용자 중 서비스에 가입되지 않은 사용자가 있습니다.",
-        });
-    });
+    if (inServiceUsersIdArray.length !== memberIdArray.length) {
+      return res.status(400).json({
+        message:
+          "초대하려는 사용자 중 서비스에 가입되지 않은 사용자가 있습니다.",
+      });
+    }
 
     const room = await Room.findById(roomId);
-
-    //채팅방이 존재하지 않는 경우
     if (!room) {
       return res.status(404).json({ message: "채팅방을 찾을 수 없습니다." });
     }
 
     //단체 채팅방이 아닌 경우 초대 불가
-    if (!room.isGroupChat) {
+    if (room.roomType !== "group") {
       return res
         .status(400)
         .json({ message: "1:1 채팅방에는 멤버를 초대할 수 없습니다." });
     }
 
     //이미 초대되어 있는 사람은 제외하고 초대
-    const newParticipants = memberIdArray.filter((memberId) => {
-      return !room.participants.includes(memberId);
+    const filteredMemberIdsArray = memberIdArray.filter((memberId) => {
+      return !room.participants.some((participant) => {
+        return participant.userId.toString() === memberId.toString();
+      });
     });
 
-    //채팅방에 초대 - participants업데이트
+    const newParticipants = filteredMemberIdsArray.map((memberId) => ({
+      userId: memberId,
+      lastReadMessageId: null,
+      lastReadAt: new Date(),
+    }));
+
     room.participants.push(...newParticipants);
     await room.save();
 
     res.status(200).json({
       message: "채팅방 멤버를 성공적으로 초대했습니다.",
       newMembers: newParticipants,
+      allMembers: room.participants,
     });
   } catch (error) {
     console.error("채팅방 멤버 초대 오류:", error);

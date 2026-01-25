@@ -15,7 +15,7 @@ const router = express.Router();
 router.get("/all", protectedRoute, getAllChattingRooms);
 
 //채팅방의 채팅내역을 불러오는 함수 (id는 room id)
-router.get("/:id", protectedRoute, getAllMessages);
+router.get("/history/:id", protectedRoute, getAllMessages);
 
 //채팅방 생성
 router.post("/", protectedRoute, createRoom);
@@ -24,9 +24,9 @@ router.post("/", protectedRoute, createRoom);
 router.get("/:roomId", protectedRoute, getRoomById);
 
 //채팅방 나가기
-router.delete("/:roomId/member/:userId", protectedRoute, leaveRoom);
+router.patch("/:roomId/member/:leaveUserId", protectedRoute, leaveRoom);
 
 //채팅방에 초대 - 1명 이상을 body로 전달
-router.post("/:roomId/members", protectedRoute, inviteMembersToRoom);
+router.patch("/:roomId/newMembers", protectedRoute, inviteMembersToRoom);
 
 export default router;

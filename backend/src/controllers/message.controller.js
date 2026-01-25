@@ -8,9 +8,6 @@ import { uploadImageToCloudinaryForChatting } from "../lib/cloudinary/uploadImag
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-//한 번에 불러올 메시지의 개수
-const MESSAGE_PAGE_SIZE = 50;
-
 /*
 2026.1.22 대규모 리팩토링 
 -> 기존에는 1:1 채팅과 N:M 채팅 각각에서 텍스트, 이미지 메시지를 전송하는 API가 별도로 존재. (4개의 API가 존재하여 유지보수 어려움)
