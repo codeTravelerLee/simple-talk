@@ -5,9 +5,9 @@ export const initJobs = () => {
   batchLogger.info("batch작업 초기화 시작...");
 
   //batch작업 목록
-  const Jobs = [runUserHardDeletionJob];
+  const jobs = [runUserHardDeletionJob];
 
-  Jobs.forEach((job) => job());
+  jobs.forEach((job) => job());
 
   batchLogger.info("batch작업 초기화 완료...");
 };

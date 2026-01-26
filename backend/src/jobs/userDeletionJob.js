@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import User from "../models/user.model";
+import User from "../models/user.model.js";
 import { batchLogger } from "../../../logger.js";
 
 export const runUserHardDeletionJob = () => {
@@ -18,9 +18,8 @@ export const runUserHardDeletionJob = () => {
           isUnderInvestigation: { $ne: true },
         };
 
-        const result = await User.deleteMany(query, {
-          skipMiddleware: true,
-        });
+        //model의 pre미들웨어 우회
+        const result = await User.collection.deleteMany(query);
 
         if (result.deletedCount > 0) {
           batchLogger.info(

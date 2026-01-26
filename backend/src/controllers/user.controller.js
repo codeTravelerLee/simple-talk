@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
 
 import User from "../models/user.model.js";
+import Room from "../models/room.model.js";
+
 import cloudinary from "../lib/cloudinary/cloudinary.js";
 import mongoose from "mongoose";
 
@@ -244,10 +247,15 @@ export const getBatchUserStatus = async (req, res) => {
 export const deleteAccount = async (req, res) => {
   const toBeDeletedUserId = req.user._id;
 
+  //트랜잭션 시작
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const user = await User.findById(toBeDeletedUserId);
+    const user = await User.findById(toBeDeletedUserId).session(session);
 
     if (!user) {
+      await session.abortTransaction();
       return res.status(404).json({ error: "유저를 찾을 수 없습니다." });
     }
 
@@ -256,19 +264,14 @@ export const deleteAccount = async (req, res) => {
     user.deletedAt = new Date();
 
     user.fullName = "탈퇴한 사용자";
-    user.email = `${user.email}-deleted-${Date.now()}`;
+    user.email = `${user.email}-deleted-${uuidv4()}`;
 
+    //스토리지 삭제를 위해 값을 복사!
     const cloudinaryPublicId = user.profileImg?.publicId;
-
-    if (cloudinaryPublicId) {
-      await cloudinary.uploader.destroy(cloudinaryPublicId, {
-        invalidate: true,
-      });
-    }
 
     user.profileImg = { url: "", publicId: "" };
 
-    await user.save();
+    await user.save({ session });
 
     //토큰 만료처리
     await clearCookie(req, res);
@@ -277,12 +280,25 @@ export const deleteAccount = async (req, res) => {
     await Room.updateMany(
       { "participants.userId": toBeDeletedUserId },
       { $pull: { participants: { userId: toBeDeletedUserId } } },
+      { session },
     );
+
+    await session.commitTransaction();
+
+    //모델에서 삭제된 후에 스토리지 삭제
+    if (cloudinaryPublicId) {
+      await cloudinary.uploader.destroy(cloudinaryPublicId, {
+        invalidate: true,
+      });
+    }
 
     res.status(200).json({ message: "회원 탈퇴가 완료되었습니다." });
   } catch (error) {
     console.error(`회원 탈퇴 중 에러 발생: ${error}`);
+    await session.abortTransaction();
+
     return res.status(500).json({ error: "internal server error..." });
+  } finally {
+    await session.endSession();
   }
 };
-
