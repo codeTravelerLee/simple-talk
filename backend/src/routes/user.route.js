@@ -7,6 +7,7 @@ import {
   getUserStatus,
   getBatchUserStatus,
   updateProfile,
+  deleteAccount,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -18,10 +19,12 @@ router.get("/status/:userId", protectedRoute, getUserStatus); //1명
 router.post(
   "/socket-connection/status/multiple",
   protectedRoute,
-  getBatchUserStatus
+  getBatchUserStatus,
 ); //여러명
 
 router.patch("/profile", protectedRoute, updateProfile);
 router.delete("/profile-img", protectedRoute, deleteProfileImg);
+
+router.delete("/", protectedRoute, deleteAccount);
 
 export default router;
