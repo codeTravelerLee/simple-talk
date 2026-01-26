@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 import { generateCookieAndSetToken } from "../middleware/generateTokenAndSetCookie.js";
 import redis from "../lib/redis.js";
-import cloudinary from "../lib/cloudinary.js";
+import cloudinary from "../lib/cloudinary/cloudinary.js";
 import { sendVerificationEmail } from "../lib/email.js";
 
 export const getCurrentUser = async (req, res) => {
@@ -139,7 +139,7 @@ export const login = async (req, res) => {
       let updatedUser = await User.findOneAndUpdate(
         { _id: foundUser._id },
         { $inc: { passwordWrongCount: 1 } },
-        { new: true }
+        { new: true },
       );
 
       //비밀번호를 틀리면 사용자에게 보낼 메시지
@@ -160,7 +160,7 @@ export const login = async (req, res) => {
               isAccountLocked: true,
               lockedUntil: new Date(Date.now() + LOCK_DURATION_TIME),
             },
-          }
+          },
         );
 
         warningMessage =
@@ -181,7 +181,7 @@ export const login = async (req, res) => {
           isAccountLocked: false,
           lockedUntil: null,
         },
-      }
+      },
     );
 
     // 토큰발급
@@ -251,7 +251,7 @@ export const sendEmailVerification = async (req, res) => {
 
     //이메일 인증 코드 생성 및 저장 (임시로 6자리 숫자)
     const verificationCode = Math.floor(
-      100000 + Math.random() * 900000
+      100000 + Math.random() * 900000,
     ).toString();
 
     // Redis에 인증 코드 저장 (10분 후 만료)
@@ -263,7 +263,7 @@ export const sendEmailVerification = async (req, res) => {
     res.status(200).json({ message: "인증 코드가 이메일로 전송되었습니다." });
   } catch (error) {
     console.error(
-      `이메일 인증 코드 전송 중 에러 발생: ${error.message || error}`
+      `이메일 인증 코드 전송 중 에러 발생: ${error.message || error}`,
     );
     res.status(500).json({
       error: "internal server error... process: 이메일 인증 코드 전송",
@@ -295,7 +295,7 @@ export const verifyEmailCode = async (req, res) => {
     res.status(200).json({ message: "이메일 인증이 완료되었습니다." });
   } catch (error) {
     console.error(
-      `이메일 인증 코드 확인 중 에러 발생: ${error.message || error}`
+      `이메일 인증 코드 확인 중 에러 발생: ${error.message || error}`,
     );
     res.status(500).json({
       error: "internal server error... process: 이메일 인증 코드 확인",
@@ -338,7 +338,7 @@ export const saveAdditionalSignupInfo = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       { _id: userId },
       { gender, dateOfBirth, profileImg: profileImageData },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedUser) {

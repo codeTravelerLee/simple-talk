@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 
 import User from "../models/user.model.js";
-import cloudinary from "../lib/cloudinary.js";
+import cloudinary from "../lib/cloudinary/cloudinary.js";
 import mongoose from "mongoose";
 
 export const updateProfile = async (req, res) => {
