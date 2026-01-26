@@ -64,14 +64,12 @@ const userSchema = new mongoose.Schema(
 );
 
 //쿼리시 삭제되지 않은 유저만 대상으로!
-userSchema.pre([/^find/, /^update/, /^delete/, /^count/], function (next) {
+userSchema.pre([/^find/, /^update/, /^delete/, /^count/], function () {
   this.where({ isDeleted: { $ne: true } });
-  next();
 });
 
-userSchema.pre("aggregate", function (next) {
+userSchema.pre("aggregate", function () {
   this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
-  next();
 });
 
 const User = mongoose.model("User", userSchema);

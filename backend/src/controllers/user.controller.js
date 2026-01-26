@@ -8,6 +8,7 @@ import cloudinary from "../lib/cloudinary/cloudinary.js";
 import mongoose from "mongoose";
 
 import { clearCookie } from "../utils/clearCookie.js";
+import { toKSTFormat } from "../utils/date.js";
 
 export const updateProfile = async (req, res) => {
   const userId = req.user._id;
@@ -261,7 +262,7 @@ export const deleteAccount = async (req, res) => {
 
     //정보 삭제
     user.isDeleted = true;
-    user.deletedAt = new Date();
+    user.deletedAt = toKSTFormat(Date.now());
 
     user.fullName = "탈퇴한 사용자";
     user.email = `${user.email}-deleted-${uuidv4()}`;
