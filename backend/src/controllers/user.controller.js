@@ -4,6 +4,8 @@ import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary/cloudinary.js";
 import mongoose from "mongoose";
 
+import { clearCookie } from "../utils/clearCookie.js";
+
 export const updateProfile = async (req, res) => {
   const userId = req.user._id;
 
@@ -91,7 +93,7 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       { _id: userId },
       { $set: updateData },
-      { new: true }
+      { new: true },
     ).select("-password");
 
     if (!updatedUser) {
@@ -134,7 +136,7 @@ export const deleteProfileImg = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       { $set: { profileImg: { url: "", publicId: "" } } },
-      { session: session, new: true }
+      { session: session, new: true },
     ).select("-password");
 
     // cloudinary에서 삭제
@@ -170,7 +172,7 @@ export const getUsers = async (req, res) => {
 
   try {
     const users = await User.find({ _id: { $ne: currentUserId } }).select(
-      "-password"
+      "-password",
     );
 
     res
@@ -216,7 +218,7 @@ export const getBatchUserStatus = async (req, res) => {
 
   try {
     const users = await User.find({ _id: { $in: userIds } }).select(
-      "_id lastSocketConnection"
+      "_id lastSocketConnection",
     );
 
     //각 사용자의 소켓 접속 상태를 저장할 맵
@@ -235,3 +237,52 @@ export const getBatchUserStatus = async (req, res) => {
     res.status(500).json({ error: "internal server error..." });
   }
 };
+
+//회원 탈퇴
+// 3개월은 유보기간: soft delete
+// 3개월 뒤에는 hard delete
+export const deleteAccount = async (req, res) => {
+  const toBeDeletedUserId = req.user._id;
+
+  try {
+    const user = await User.findById(toBeDeletedUserId);
+
+    if (!user) {
+      return res.status(404).json({ error: "유저를 찾을 수 없습니다." });
+    }
+
+    //정보 삭제
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+
+    user.fullName = "탈퇴한 사용자";
+    user.email = `${user.email}-deleted-${Date.now()}`;
+
+    const cloudinaryPublicId = user.profileImg?.publicId;
+
+    if (cloudinaryPublicId) {
+      await cloudinary.uploader.destroy(cloudinaryPublicId, {
+        invalidate: true,
+      });
+    }
+
+    user.profileImg = { url: "", publicId: "" };
+
+    await user.save();
+
+    //토큰 만료처리
+    await clearCookie(req, res);
+
+    //채팅방 탈퇴
+    await Room.updateMany(
+      { "participants.userId": toBeDeletedUserId },
+      { $pull: { participants: { userId: toBeDeletedUserId } } },
+    );
+
+    res.status(200).json({ message: "회원 탈퇴가 완료되었습니다." });
+  } catch (error) {
+    console.error(`회원 탈퇴 중 에러 발생: ${error}`);
+    return res.status(500).json({ error: "internal server error..." });
+  }
+};
+

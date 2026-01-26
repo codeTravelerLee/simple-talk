@@ -11,6 +11,8 @@ import roomRoutes from "./routes/room.route.js";
 import { connectMongo } from "./lib/db/mongoDB.js";
 import { app, server } from "./lib/socket.js";
 
+import { initJobs } from "./jobs/index.js";
+
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
@@ -24,7 +26,7 @@ app.use(
         : undefined,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  })
+  }),
 );
 
 app.use(express.json({ limit: "5mb" }));
@@ -40,4 +42,5 @@ app.use("/api/v1/room", roomRoutes); //채팅방 관련
 server.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}...`);
   await connectMongo();
+  initJobs(); //batch작업 연동
 });

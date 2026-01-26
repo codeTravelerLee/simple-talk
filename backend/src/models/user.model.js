@@ -46,9 +46,33 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    //사용자 탈퇴 관련
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    isUnderInvestigation: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
+
+//쿼리시 삭제되지 않은 유저만 대상으로!
+userSchema.pre([/^find/, /^update/, /^delete/, /^count/], function (next) {
+  this.where({ isDeleted: { $ne: true } });
+  next();
+});
+
+userSchema.pre("aggregate", function (next) {
+  this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
+  next();
+});
 
 const User = mongoose.model("User", userSchema);
 

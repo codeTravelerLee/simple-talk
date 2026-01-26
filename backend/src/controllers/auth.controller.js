@@ -5,6 +5,7 @@ import { generateCookieAndSetToken } from "../middleware/generateTokenAndSetCook
 import redis from "../lib/redis.js";
 import cloudinary from "../lib/cloudinary/cloudinary.js";
 import { sendVerificationEmail } from "../lib/email.js";
+import { clearCookie } from "../utils/clearCookie.js";
 
 export const getCurrentUser = async (req, res) => {
   try {
@@ -208,19 +209,7 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    //레디스에 저장된 리프레시 토큰 삭제
-    await redis.del(`refresh_token_${req.user._id}`);
-
-    //쿠키 삭제
-    const cookieOptions = {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV === "development" ? "lax" : "strict",
-      secure: process.env.NODE_ENV !== "development",
-      path: "/",
-    };
-
-    res.clearCookie("access_token", cookieOptions);
-    res.clearCookie("refresh_token", cookieOptions);
+    await clearCookie(req, res);
 
     res.status(204).end();
   } catch (error) {
